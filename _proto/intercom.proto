@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "proto";
+
+// Prime factors service definition.
+service Intercom {
+
+// Broadcast will send a greeting
+rpc Broadcast (stream BroadcastReq) returns (stream BroadcastResp) {}
+}
+
+// The request message containing the image.
+message BroadcastReq {
+    string text = 1;
+}
+
+// The response message containing the reply
+message BroadcastResp {
+    string text = 1;
+}
