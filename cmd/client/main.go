@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"math"
 	"os"
 
 	"gocv.io/x/gocv"
@@ -57,7 +58,7 @@ func main() {
 	defer showImg.Close()
 
 	fmt.Printf("Start reading device: %v\n", deviceID)
-	fmt.Printf("window Rect: %d, %d, %d, %d",
+	fmt.Printf("window Rect: %d, %d, %d, %d\n",
 		mirrorWindowX,
 		mirrorWindowY,
 		mirrorWindowX + mirrorWindowHeight,
@@ -73,20 +74,20 @@ func main() {
 			fmt.Printf("Device closed: %v\n", deviceID)
 			return
 		}
-		screenCapRatio := screenCap.Size()[0]/screenCap.Size()[1]
-		gocv.Resize(screenCap, &windowImg, image.Point{X: mirrorWindowHeight*screenCapRatio, Y: mirrorWindowWidth}, 0, 0, gocv.InterpolationDefault)
+		screenCapRatio := float64(float64(screenCap.Size()[1])/float64(screenCap.Size()[0]))
+		mirrorWindowScaledHeight := int(math.Ceil(mirrorWindowWidth/screenCapRatio))
+		//fmt.Printf("Resizing to: %d, %d, %d, %d\n",
+		//	mirrorWindowX,
+		//	mirrorWindowY,
+		//	mirrorWindowX + mirrorWindowHeight*screenCapRatio,
+		//	mirrorWindowY + mirrorWindowWidth)
+		gocv.Resize(screenCap, &windowImg, image.Point{X: mirrorWindowScaledHeight, Y: mirrorWindowWidth}, 0, 0, gocv.InterpolationDefault)
 
-		for x := 0; x <= mirrorWindowHeight; x++ {
+		for x := 0; x <= mirrorWindowScaledHeight; x++ {
 			for y := 0; y <= mirrorWindowWidth; y++ {
-				fmt.Printf("screenCap.GetUCharAt(%d,%d): %#v\n",
-					x,
-					y,
-					screenCap.GetUCharAt(x, y))
-				fmt.Printf("showImg.SetShortAt(%d,%d): %#v\n",
-					x+mirrorWindowX,
-					y+mirrorWindowY,
-					showImg.GetUCharAt(x+mirrorWindowX, y+mirrorWindowY))
-				showImg.SetUCharAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetUCharAt(x, y))
+				//showImg.SetIntAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetIntAt(x, y))
+				showImg.SetDoubleAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetDoubleAt(x, y))
+				//showImg.SetUCharAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetUCharAt(x, y))
 			}
 		}
 
