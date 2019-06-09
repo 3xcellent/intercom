@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"image"
 	"os"
-	"time"
 
 	"gocv.io/x/gocv"
 )
 
 const (
-	imgSizeWidth = 1280/2
-	imgSizeHeight = 720/2
+	screenWidth  = 1280/2
+	screenHeight = 720/2
+	mirrorWindowWidth = screenWidth/4
+	mirrorWindowHeight = screenHeight/4
+	mirrorWindowX = screenHeight - mirrorWindowHeight - (mirrorWindowHeight/4)
+	mirrorWindowY = screenWidth - mirrorWindowWidth - (mirrorWindowWidth/4)
 )
 
 
@@ -27,18 +30,17 @@ func main() {
 	filename := os.Args[2]
 
 	defaultImg := gocv.IMRead(filename, gocv.IMReadColor)
-	fmt.Printf("defaultImg Type: %#v\n", defaultImg.Type())
-	resizedImage := gocv.NewMatWithSize(imgSizeHeight, imgSizeWidth, gocv.MatTypeCV8UC3)
-	fmt.Printf("Created resizedImage: %#v\n", resizedImage.Size())
-	gocv.Resize(defaultImg, &resizedImage, image.Point{X: imgSizeWidth, Y: imgSizeHeight}, 0, 0, gocv.InterpolationDefault)
-	fmt.Printf("Resized defaultImg: %#v\n", resizedImage.Size())
 
 	if defaultImg.Empty() {
 		fmt.Println("Error reading image from: %v\n", filename)
 		return
 	} else {
 		fmt.Println("Opening image from: %v | %#v\n", filename, defaultImg.Size())
+		fmt.Printf("defaultImg Type: %#v\n", defaultImg.Type())
 	}
+	resizedImage := gocv.NewMatWithSize(screenHeight, screenWidth, gocv.MatTypeCV8UC3)
+	gocv.Resize(defaultImg, &resizedImage, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
+	fmt.Printf("Resized defaultImg: %#v\n", resizedImage.Size())
 
 	webcam, err := gocv.OpenVideoCapture(deviceID)
 	if err != nil {
@@ -54,30 +56,40 @@ func main() {
 	showImg := gocv.NewMat()
 	defer showImg.Close()
 
-	switchedAt := time.Now()
 	fmt.Printf("Start reading device: %v\n", deviceID)
-
-	IsShowingWaitScreen := true
+	fmt.Printf("window Rect: %d, %d, %d, %d",
+		mirrorWindowX,
+		mirrorWindowY,
+		mirrorWindowX + mirrorWindowHeight,
+		mirrorWindowY + mirrorWindowWidth)
 
 	for {
-		if time.Now().After(switchedAt.Add(5 * time.Second)) {
-			switchedAt = time.Now()
-			IsShowingWaitScreen = !IsShowingWaitScreen
-			fmt.Printf("IsShowingWaitScreen: %v\n", IsShowingWaitScreen)
+		showImg = resizedImage.Clone()
+
+		screenCap := gocv.NewMat()
+		windowImg := gocv.NewMatWithSize(mirrorWindowHeight, mirrorWindowWidth, gocv.MatTypeCV8UC3)
+
+		if ok := webcam.Read(&screenCap); !ok {
+			fmt.Printf("Device closed: %v\n", deviceID)
+			return
 		}
+		screenCapRatio := screenCap.Size()[0]/screenCap.Size()[1]
+		gocv.Resize(screenCap, &windowImg, image.Point{X: mirrorWindowHeight*screenCapRatio, Y: mirrorWindowWidth}, 0, 0, gocv.InterpolationDefault)
 
-		if IsShowingWaitScreen {
-			showImg = resizedImage.Clone()
-		} else {
-
-			screenCap := gocv.NewMat()
-			if ok := webcam.Read(&screenCap); !ok {
-				fmt.Printf("Device closed: %v\n", deviceID)
-				return
+		for x := 0; x <= mirrorWindowHeight; x++ {
+			for y := 0; y <= mirrorWindowWidth; y++ {
+				fmt.Printf("screenCap.GetUCharAt(%d,%d): %#v\n",
+					x,
+					y,
+					screenCap.GetUCharAt(x, y))
+				fmt.Printf("showImg.SetShortAt(%d,%d): %#v\n",
+					x+mirrorWindowX,
+					y+mirrorWindowY,
+					showImg.GetUCharAt(x+mirrorWindowX, y+mirrorWindowY))
+				showImg.SetUCharAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetUCharAt(x, y))
 			}
-			gocv.Resize(screenCap, &screenCap, image.Point{X: imgSizeWidth, Y: imgSizeHeight}, 0, 0, gocv.InterpolationDefault)
-			showImg = screenCap.Clone()
 		}
+
 		if showImg.Empty() {
 			fmt.Printf("no image; continue... \n")
 			continue
