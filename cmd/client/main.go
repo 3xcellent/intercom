@@ -81,13 +81,14 @@ func main() {
 		//	mirrorWindowY,
 		//	mirrorWindowX + mirrorWindowHeight*screenCapRatio,
 		//	mirrorWindowY + mirrorWindowWidth)
-		gocv.Resize(screenCap, &windowImg, image.Point{X: mirrorWindowScaledHeight, Y: mirrorWindowWidth}, 0, 0, gocv.InterpolationDefault)
+		gocv.Resize(screenCap, &windowImg, image.Point{X: mirrorWindowWidth, Y: mirrorWindowScaledHeight}, 0, 0, gocv.InterpolationDefault)
 
 		for x := 0; x <= mirrorWindowScaledHeight; x++ {
 			for y := 0; y <= mirrorWindowWidth; y++ {
-				//showImg.SetIntAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetIntAt(x, y))
-				showImg.SetDoubleAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetDoubleAt(x, y))
-				//showImg.SetUCharAt(x+mirrorWindowX, y+mirrorWindowY, windowImg.GetUCharAt(x, y))
+				//showImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetIntAt3(x, y, 0))
+				showImg.SetFloatAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetFloatAt3(x, y, 0))
+				//showImg.SetDoubleAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetDoubleAt3(x, y, 0))
+				//showImg.SetUCharAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetUCharAt3(x, y, 0))
 			}
 		}
 
