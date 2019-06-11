@@ -20,28 +20,18 @@ const (
 
 
 func main() {
+	// parse args
 	fmt.Printf("Starting with args: %#v\n", os.Args)
 	if len(os.Args) < 2 {
 		fmt.Println("How to run:\n\tcapwindow [camera ID]")
 		return
 	}
-
-	// parse args
 	deviceID := os.Args[1]
 	filename := os.Args[2]
 
-	defaultImg := gocv.IMRead(filename, gocv.IMReadColor)
-
-	if defaultImg.Empty() {
-		fmt.Println("Error reading image from: %v\n", filename)
-		return
-	} else {
-		fmt.Println("Opening image from: %v | %#v\n", filename, defaultImg.Size())
-		fmt.Printf("defaultImg Type: %#v\n", defaultImg.Type())
-	}
+	// prepare displayImg
 	resizedImage := gocv.NewMatWithSize(screenHeight, screenWidth, gocv.MatTypeCV8UC3)
-	gocv.Resize(defaultImg, &resizedImage, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
-	fmt.Printf("Resized defaultImg: %#v\n", resizedImage.Size())
+	getSizedDisplayImg(filename, &resizedImage)
 
 	webcam, err := gocv.OpenVideoCapture(deviceID)
 	if err != nil {
@@ -54,38 +44,58 @@ func main() {
 	fmt.Printf("Created Window\n")
 	defer window.Close()
 
-	showImg := gocv.NewMat()
-	defer showImg.Close()
+	displayImg := resizedImage.Clone()
+	defer displayImg.Close()
 
 	fmt.Printf("Start reading device: %v\n", deviceID)
+	videoPreviewImg := gocv.NewMatWithSize(mirrorWindowHeight, mirrorWindowWidth, gocv.MatTypeCV8UC3)
+
+	// main loop
 	for {
-		showImg = resizedImage.Clone()
+		updateVideoPreviewImg(webcam, &videoPreviewImg)
+		updateDisplayWithVideoPreview(&displayImg, videoPreviewImg)
 
-		screenCap := gocv.NewMat()
-		windowImg := gocv.NewMatWithSize(mirrorWindowHeight, mirrorWindowWidth, gocv.MatTypeCV8UC3)
-
-		if ok := webcam.Read(&screenCap); !ok {
-			fmt.Printf("Device closed: %v\n", deviceID)
-			return
-		}
-		screenCapRatio := float64(float64(screenCap.Size()[1])/float64(screenCap.Size()[0]))
-		mirrorWindowScaledHeight := int(math.Floor(mirrorWindowWidth/screenCapRatio))
-		gocv.Resize(screenCap, &windowImg, image.Point{X: mirrorWindowWidth, Y: mirrorWindowScaledHeight}, 0, 0, gocv.InterpolationDefault)
-
-		for x := 0; x <= mirrorWindowScaledHeight-1; x++ {
-			for y := 0; y <= mirrorWindowWidth; y++ {
-				showImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetIntAt3(x, y, 0))
-			}
-		}
-
-		if showImg.Empty() {
+		if displayImg.Empty() {
 			fmt.Printf("no image; continue... \n")
 			continue
 		}
 
-		window.IMShow(showImg)
+		window.IMShow(displayImg)
 		if window.WaitKey(1) == 27 {
 			break
 		}
 	}
+}
+
+func getSizedDisplayImg(filename string, img *gocv.Mat) {
+	defaultImg := gocv.IMRead(filename, gocv.IMReadColor)
+	defer defaultImg.Close()
+
+	if defaultImg.Empty() {
+		fmt.Println("Error reading image from: %v\n", filename)
+		return
+	} else {
+		fmt.Println("Opening image from: %v | %#v\n", filename, defaultImg.Size())
+	}
+	gocv.Resize(defaultImg, img, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
+}
+
+func updateDisplayWithVideoPreview(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
+	for x := 0; x <= mirrorImg.Size()[0]-1; x++ {
+		for y := 0; y <= mirrorWindowWidth; y++ {
+			displayImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, mirrorImg.GetIntAt3(x, y, 0))
+		}
+	}
+}
+
+func updateVideoPreviewImg(webcam *gocv.VideoCapture, sizedImg *gocv.Mat) {
+	videoCapture := gocv.NewMat()
+	defer videoCapture.Close()
+
+	if ok := webcam.Read(&videoCapture); !ok {
+		return
+	}
+	screenCapRatio := float64(float64(videoCapture.Size()[1])/float64(videoCapture.Size()[0]))
+	mirrorWindowScaledHeight := int(math.Floor(mirrorWindowWidth/screenCapRatio))
+	gocv.Resize(videoCapture, sizedImg, image.Point{X: mirrorWindowWidth, Y: mirrorWindowScaledHeight}, 0, 0, gocv.InterpolationDefault)
 }
