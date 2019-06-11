@@ -8,8 +8,6 @@ import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -25,8 +23,88 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // The request message containing the image.
+type ViewBroadcastReq struct {
+	Bytes                []byte   `protobuf:"bytes,1,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ViewBroadcastReq) Reset()         { *m = ViewBroadcastReq{} }
+func (m *ViewBroadcastReq) String() string { return proto.CompactTextString(m) }
+func (*ViewBroadcastReq) ProtoMessage()    {}
+func (*ViewBroadcastReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b7dc4dbe05ff714, []int{0}
+}
+
+func (m *ViewBroadcastReq) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ViewBroadcastReq.Unmarshal(m, b)
+}
+func (m *ViewBroadcastReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ViewBroadcastReq.Marshal(b, m, deterministic)
+}
+func (m *ViewBroadcastReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ViewBroadcastReq.Merge(m, src)
+}
+func (m *ViewBroadcastReq) XXX_Size() int {
+	return xxx_messageInfo_ViewBroadcastReq.Size(m)
+}
+func (m *ViewBroadcastReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_ViewBroadcastReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ViewBroadcastReq proto.InternalMessageInfo
+
+func (m *ViewBroadcastReq) GetBytes() []byte {
+	if m != nil {
+		return m.Bytes
+	}
+	return nil
+}
+
+// The response message containing the reply
+type ViewBroadcastResp struct {
+	Bytes                []byte   `protobuf:"bytes,1,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ViewBroadcastResp) Reset()         { *m = ViewBroadcastResp{} }
+func (m *ViewBroadcastResp) String() string { return proto.CompactTextString(m) }
+func (*ViewBroadcastResp) ProtoMessage()    {}
+func (*ViewBroadcastResp) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b7dc4dbe05ff714, []int{1}
+}
+
+func (m *ViewBroadcastResp) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ViewBroadcastResp.Unmarshal(m, b)
+}
+func (m *ViewBroadcastResp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ViewBroadcastResp.Marshal(b, m, deterministic)
+}
+func (m *ViewBroadcastResp) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ViewBroadcastResp.Merge(m, src)
+}
+func (m *ViewBroadcastResp) XXX_Size() int {
+	return xxx_messageInfo_ViewBroadcastResp.Size(m)
+}
+func (m *ViewBroadcastResp) XXX_DiscardUnknown() {
+	xxx_messageInfo_ViewBroadcastResp.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ViewBroadcastResp proto.InternalMessageInfo
+
+func (m *ViewBroadcastResp) GetBytes() []byte {
+	if m != nil {
+		return m.Bytes
+	}
+	return nil
+}
+
+// The request message containing the image.
 type BroadcastReq struct {
-	Text                 string   `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Bytes                []byte   `protobuf:"bytes,1,opt,name=bytes,proto3" json:"bytes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -36,7 +114,7 @@ func (m *BroadcastReq) Reset()         { *m = BroadcastReq{} }
 func (m *BroadcastReq) String() string { return proto.CompactTextString(m) }
 func (*BroadcastReq) ProtoMessage()    {}
 func (*BroadcastReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4b7dc4dbe05ff714, []int{0}
+	return fileDescriptor_4b7dc4dbe05ff714, []int{2}
 }
 
 func (m *BroadcastReq) XXX_Unmarshal(b []byte) error {
@@ -57,16 +135,16 @@ func (m *BroadcastReq) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_BroadcastReq proto.InternalMessageInfo
 
-func (m *BroadcastReq) GetText() string {
+func (m *BroadcastReq) GetBytes() []byte {
 	if m != nil {
-		return m.Text
+		return m.Bytes
 	}
-	return ""
+	return nil
 }
 
 // The response message containing the reply
 type BroadcastResp struct {
-	Text                 string   `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Bytes                []byte   `protobuf:"bytes,1,opt,name=bytes,proto3" json:"bytes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -76,7 +154,7 @@ func (m *BroadcastResp) Reset()         { *m = BroadcastResp{} }
 func (m *BroadcastResp) String() string { return proto.CompactTextString(m) }
 func (*BroadcastResp) ProtoMessage()    {}
 func (*BroadcastResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4b7dc4dbe05ff714, []int{1}
+	return fileDescriptor_4b7dc4dbe05ff714, []int{3}
 }
 
 func (m *BroadcastResp) XXX_Unmarshal(b []byte) error {
@@ -97,14 +175,16 @@ func (m *BroadcastResp) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_BroadcastResp proto.InternalMessageInfo
 
-func (m *BroadcastResp) GetText() string {
+func (m *BroadcastResp) GetBytes() []byte {
 	if m != nil {
-		return m.Text
+		return m.Bytes
 	}
-	return ""
+	return nil
 }
 
 func init() {
+	proto.RegisterType((*ViewBroadcastReq)(nil), "ViewBroadcastReq")
+	proto.RegisterType((*ViewBroadcastResp)(nil), "ViewBroadcastResp")
 	proto.RegisterType((*BroadcastReq)(nil), "BroadcastReq")
 	proto.RegisterType((*BroadcastResp)(nil), "BroadcastResp")
 }
@@ -112,15 +192,17 @@ func init() {
 func init() { proto.RegisterFile("intercom.proto", fileDescriptor_4b7dc4dbe05ff714) }
 
 var fileDescriptor_4b7dc4dbe05ff714 = []byte{
-	// 124 bytes of a gzipped FileDescriptorProto
+	// 159 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcb, 0xcc, 0x2b, 0x49,
-	0x2d, 0x4a, 0xce, 0xcf, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x57, 0x52, 0xe2, 0xe2, 0x71, 0x2a,
-	0xca, 0x4f, 0x4c, 0x49, 0x4e, 0x2c, 0x2e, 0x09, 0x4a, 0x2d, 0x14, 0x12, 0xe2, 0x62, 0x29, 0x49,
-	0xad, 0x28, 0x91, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0c, 0x02, 0xb3, 0x95, 0x94, 0xb9, 0x78, 0x91,
-	0xd4, 0x14, 0x17, 0x60, 0x53, 0x64, 0x64, 0xc3, 0xc5, 0xe1, 0x09, 0x35, 0x5a, 0xc8, 0x80, 0x8b,
-	0x13, 0xae, 0x41, 0x88, 0x57, 0x0f, 0xd9, 0x02, 0x29, 0x3e, 0x3d, 0x14, 0xb3, 0x94, 0x18, 0x34,
-	0x18, 0x0d, 0x18, 0x9d, 0xd8, 0xa3, 0x58, 0xc1, 0xee, 0x49, 0x62, 0x03, 0x53, 0xc6, 0x80, 0x00,
-	0x00, 0x00, 0xff, 0xff, 0xb6, 0x03, 0x8e, 0x15, 0xa8, 0x00, 0x00, 0x00,
+	0x2d, 0x4a, 0xce, 0xcf, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x57, 0xd2, 0xe0, 0x12, 0x08, 0xcb,
+	0x4c, 0x2d, 0x77, 0x2a, 0xca, 0x4f, 0x4c, 0x49, 0x4e, 0x2c, 0x2e, 0x09, 0x4a, 0x2d, 0x14, 0x12,
+	0xe1, 0x62, 0x4d, 0xaa, 0x2c, 0x49, 0x2d, 0x96, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x09, 0x82, 0x70,
+	0x94, 0x34, 0xb9, 0x04, 0xd1, 0x54, 0x16, 0x17, 0xe0, 0x50, 0xaa, 0xc2, 0xc5, 0x43, 0x84, 0x81,
+	0xaa, 0x5c, 0xbc, 0x44, 0x18, 0x66, 0x54, 0xc5, 0xc5, 0xe1, 0x09, 0x75, 0xb3, 0x90, 0x01, 0x17,
+	0x27, 0x5c, 0x8b, 0x10, 0xaf, 0x1e, 0xb2, 0x25, 0x52, 0x7c, 0x7a, 0x28, 0xa6, 0x29, 0x31, 0x68,
+	0x30, 0x1a, 0x30, 0x0a, 0xd9, 0x70, 0xf1, 0xa2, 0xb8, 0x5a, 0x48, 0x50, 0x0f, 0xdd, 0xbf, 0x52,
+	0x42, 0x7a, 0x18, 0x1e, 0x83, 0xe8, 0x76, 0x62, 0x8f, 0x62, 0x05, 0x07, 0x53, 0x12, 0x1b, 0x98,
+	0x32, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0x88, 0x8c, 0x9f, 0x98, 0x3f, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -137,6 +219,7 @@ const _ = grpc.SupportPackageIsVersion4
 type IntercomClient interface {
 	// Broadcast will send a greeting
 	Broadcast(ctx context.Context, opts ...grpc.CallOption) (Intercom_BroadcastClient, error)
+	ViewBroadcast(ctx context.Context, opts ...grpc.CallOption) (Intercom_ViewBroadcastClient, error)
 }
 
 type intercomClient struct {
@@ -178,18 +261,42 @@ func (x *intercomBroadcastClient) Recv() (*BroadcastResp, error) {
 	return m, nil
 }
 
+func (c *intercomClient) ViewBroadcast(ctx context.Context, opts ...grpc.CallOption) (Intercom_ViewBroadcastClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Intercom_serviceDesc.Streams[1], "/Intercom/ViewBroadcast", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &intercomViewBroadcastClient{stream}
+	return x, nil
+}
+
+type Intercom_ViewBroadcastClient interface {
+	Send(*ViewBroadcastReq) error
+	Recv() (*ViewBroadcastResp, error)
+	grpc.ClientStream
+}
+
+type intercomViewBroadcastClient struct {
+	grpc.ClientStream
+}
+
+func (x *intercomViewBroadcastClient) Send(m *ViewBroadcastReq) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *intercomViewBroadcastClient) Recv() (*ViewBroadcastResp, error) {
+	m := new(ViewBroadcastResp)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // IntercomServer is the server API for Intercom service.
 type IntercomServer interface {
 	// Broadcast will send a greeting
 	Broadcast(Intercom_BroadcastServer) error
-}
-
-// UnimplementedIntercomServer can be embedded to have forward compatible implementations.
-type UnimplementedIntercomServer struct {
-}
-
-func (*UnimplementedIntercomServer) Broadcast(srv Intercom_BroadcastServer) error {
-	return status.Errorf(codes.Unimplemented, "method Broadcast not implemented")
+	ViewBroadcast(Intercom_ViewBroadcastServer) error
 }
 
 func RegisterIntercomServer(s *grpc.Server, srv IntercomServer) {
@@ -222,6 +329,32 @@ func (x *intercomBroadcastServer) Recv() (*BroadcastReq, error) {
 	return m, nil
 }
 
+func _Intercom_ViewBroadcast_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(IntercomServer).ViewBroadcast(&intercomViewBroadcastServer{stream})
+}
+
+type Intercom_ViewBroadcastServer interface {
+	Send(*ViewBroadcastResp) error
+	Recv() (*ViewBroadcastReq, error)
+	grpc.ServerStream
+}
+
+type intercomViewBroadcastServer struct {
+	grpc.ServerStream
+}
+
+func (x *intercomViewBroadcastServer) Send(m *ViewBroadcastResp) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *intercomViewBroadcastServer) Recv() (*ViewBroadcastReq, error) {
+	m := new(ViewBroadcastReq)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 var _Intercom_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "Intercom",
 	HandlerType: (*IntercomServer)(nil),
@@ -230,6 +363,12 @@ var _Intercom_serviceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Broadcast",
 			Handler:       _Intercom_Broadcast_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "ViewBroadcast",
+			Handler:       _Intercom_ViewBroadcast_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

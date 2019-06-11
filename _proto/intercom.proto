@@ -7,14 +7,25 @@ service Intercom {
 
 // Broadcast will send a greeting
 rpc Broadcast (stream BroadcastReq) returns (stream BroadcastResp) {}
+rpc ViewBroadcast (stream ViewBroadcastReq) returns (stream ViewBroadcastResp) {}
+}
+
+// The request message containing the image.
+message ViewBroadcastReq {
+    bytes bytes = 1;
+}
+
+// The response message containing the reply
+message ViewBroadcastResp {
+    bytes bytes = 1;
 }
 
 // The request message containing the image.
 message BroadcastReq {
-    string text = 1;
+    bytes bytes = 1;
 }
 
 // The response message containing the reply
 message BroadcastResp {
-    string text = 1;
+    bytes bytes = 1;
 }

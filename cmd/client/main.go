@@ -20,18 +20,20 @@ const (
 
 
 func main() {
-	// parse args
-	fmt.Printf("Starting with args: %#v\n", os.Args)
 	if len(os.Args) < 2 {
-		fmt.Println("How to run:\n\tcapwindow [camera ID]")
+		fmt.Println("How to run:\n\tintercom [camera ID] [path/to/background_img]")
 		return
 	}
 	deviceID := os.Args[1]
 	filename := os.Args[2]
 
 	// prepare displayImg
-	resizedImage := gocv.NewMatWithSize(screenHeight, screenWidth, gocv.MatTypeCV8UC3)
-	getSizedDisplayImg(filename, &resizedImage)
+	bgImg := gocv.NewMatWithSize(screenHeight, screenWidth, gocv.MatTypeCV8UC3)
+	getSizedBackgroundImg(filename, &bgImg)
+	defer bgImg.Close()
+
+	displayImg := bgImg.Clone()
+	defer displayImg.Close()
 
 	webcam, err := gocv.OpenVideoCapture(deviceID)
 	if err != nil {
@@ -41,14 +43,10 @@ func main() {
 	defer webcam.Close()
 
 	window := gocv.NewWindow("Capture Window")
-	fmt.Printf("Created Window\n")
 	defer window.Close()
 
-	displayImg := resizedImage.Clone()
-	defer displayImg.Close()
-
-	fmt.Printf("Start reading device: %v\n", deviceID)
 	videoPreviewImg := gocv.NewMatWithSize(mirrorWindowHeight, mirrorWindowWidth, gocv.MatTypeCV8UC3)
+	defer videoPreviewImg.Close()
 
 	// main loop
 	for {
@@ -67,7 +65,7 @@ func main() {
 	}
 }
 
-func getSizedDisplayImg(filename string, img *gocv.Mat) {
+func getSizedBackgroundImg(filename string, img *gocv.Mat) {
 	defaultImg := gocv.IMRead(filename, gocv.IMReadColor)
 	defer defaultImg.Close()
 
