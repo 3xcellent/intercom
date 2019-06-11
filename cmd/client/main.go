@@ -81,7 +81,7 @@ func getSizedBackgroundImg(filename string, img *gocv.Mat) {
 func updateDisplayWithVideoPreview(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
 	for x := 0; x <= mirrorImg.Size()[0]-1; x++ {
 		for y := 0; y <= mirrorWindowWidth; y++ {
-			displayImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, mirrorImg.GetIntAt3(x, y, 0))
+			displayImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, mirrorImg.GetIntAt3(x, mirrorWindowWidth-y, 0))
 		}
 	}
 }
