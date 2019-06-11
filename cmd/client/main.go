@@ -58,12 +58,6 @@ func main() {
 	defer showImg.Close()
 
 	fmt.Printf("Start reading device: %v\n", deviceID)
-	fmt.Printf("window Rect: %d, %d, %d, %d\n",
-		mirrorWindowX,
-		mirrorWindowY,
-		mirrorWindowX + mirrorWindowHeight,
-		mirrorWindowY + mirrorWindowWidth)
-
 	for {
 		showImg = resizedImage.Clone()
 
@@ -75,20 +69,12 @@ func main() {
 			return
 		}
 		screenCapRatio := float64(float64(screenCap.Size()[1])/float64(screenCap.Size()[0]))
-		mirrorWindowScaledHeight := int(math.Ceil(mirrorWindowWidth/screenCapRatio))
-		//fmt.Printf("Resizing to: %d, %d, %d, %d\n",
-		//	mirrorWindowX,
-		//	mirrorWindowY,
-		//	mirrorWindowX + mirrorWindowHeight*screenCapRatio,
-		//	mirrorWindowY + mirrorWindowWidth)
+		mirrorWindowScaledHeight := int(math.Floor(mirrorWindowWidth/screenCapRatio))
 		gocv.Resize(screenCap, &windowImg, image.Point{X: mirrorWindowWidth, Y: mirrorWindowScaledHeight}, 0, 0, gocv.InterpolationDefault)
 
-		for x := 0; x <= mirrorWindowScaledHeight; x++ {
+		for x := 0; x <= mirrorWindowScaledHeight-1; x++ {
 			for y := 0; y <= mirrorWindowWidth; y++ {
-				//showImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetIntAt3(x, y, 0))
-				showImg.SetFloatAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetFloatAt3(x, y, 0))
-				//showImg.SetDoubleAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetDoubleAt3(x, y, 0))
-				//showImg.SetUCharAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetUCharAt3(x, y, 0))
+				showImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, windowImg.GetIntAt3(x, y, 0))
 			}
 		}
 
