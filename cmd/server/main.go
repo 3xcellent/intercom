@@ -99,7 +99,7 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 		_, err := stream.Recv()
 		if err == io.EOF {
 			// return will close stream from server side
-			log.Println("exit")
+			log.Println("exiting stream...")
 			return nil
 		}
 		if err != nil {
@@ -155,10 +155,10 @@ func getSizedBroadcastImg(filename string, img *gocv.Mat) {
 	defer defaultImg.Close()
 
 	if defaultImg.Empty() {
-		fmt.Println("Error reading image from: %v\n", filename)
+		fmt.Printf("Error reading image from: %v\n", filename)
 		return
 	} else {
-		fmt.Println("Opening image from: %v | %#v\n", filename, defaultImg.Size())
+		fmt.Printf("Opening image from: %v | %#v\n", filename, defaultImg.Size())
 	}
 	gocv.Resize(defaultImg, img, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
 }

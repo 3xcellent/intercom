@@ -32,7 +32,6 @@ const (
 	matType = gocv.MatTypeCV8UC3
 )
 
-
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("How to run:\n\tintercom [camera ID] [path/to/background_img]")
@@ -115,7 +114,6 @@ func main() {
 			if serverImg != nil {
 				isReceivingBroadcast = true
 				fmt.Println("receiving incoming broadcast")
-				fmt.Println("placing window at: %d,%d", inBroadcastX, inBroadcastY)
 			}
 		}
 
@@ -208,10 +206,10 @@ func getSizedBackgroundImg(filename string, img *gocv.Mat) {
 	defer defaultImg.Close()
 
 	if defaultImg.Empty() {
-		fmt.Println("Error reading image from: %v\n", filename)
+		fmt.Printf("Error reading image from: %v\n", filename)
 		return
 	} else {
-		fmt.Println("Opening image from: %v | %#v\n", filename, defaultImg.Size())
+		fmt.Printf("Opening image from: %v | %#v\n", filename, defaultImg.Size())
 	}
 	gocv.Resize(defaultImg, img, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
 }
