@@ -33,7 +33,7 @@ type intercomServer struct {
 }
 
 func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastServer) error {
-	log.Println("start new server")
+	log.Println("start new ClientBroadcast")
 	ctx := stream.Context()
 
 	for {
@@ -58,21 +58,24 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 			continue
 		}
 
-		// process data
-		s.currentBroadcastName = broadcast.Name
-		s.isCurrentlyBroadcasting = true
+		resp := proto.ClientBroadcastResp{}
 
-		// update broadcastImg and send it to stream
-		s.currentBroadcastImg, err = gocv.NewMatFromBytes(screenHeight, screenWidth, matType, broadcast.Bytes)
-		if err != nil {
-			log.Printf("cannot create NewMatFromBytes: %v\n", err)
-			continue
-		}
+		if 	s.isCurrentlyBroadcasting && s.currentBroadcastName != broadcast.Name {
+			resp.BroadcastAccepted = false
+			resp.Reason = "BACKOFF"
+			resp.Status = 1
+		} else {
+			s.isCurrentlyBroadcasting = true
+			resp.BroadcastAccepted = true
+			s.currentBroadcastName = broadcast.Name
 
-		resp := proto.ClientBroadcastResp{
-			Status: 			  0,
-			BroadcastAccepted:    true,
-			Reason:               "",
+			// update broadcastImg and send it to stream
+			s.currentBroadcastImg, err = gocv.NewMatFromBytes(int(broadcast.Height), int(broadcast.Width), gocv.MatType(broadcast.Type), broadcast.Bytes)
+			if err != nil {
+				log.Printf("cannot create NewMatFromBytes: %v\n", err)
+				continue
+			}
+			fmt.Printf("s.currentBroadcastImg.Size() %v", s.currentBroadcastImg.Size())
 		}
 
 		if err := stream.Send(&resp); err != nil {
@@ -110,13 +113,18 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 		// TODO check if already listed as a client??
 		s.clients = []string{req.Name}
 
+		img := &s.defaultBackgroundImg
+		if s.isCurrentlyBroadcasting {
+			img = &s.currentBroadcastImg
+		}
+
 		resp := proto.ServerBroadcastResp{
 			IsCurrentlyBroadcasting: true,
 			Name:                 	s.currentBroadcastName,
-			Bytes:                	s.defaultBackgroundImg.ToBytes(),
-			Height:  	int32(s.defaultBackgroundImg.Size()[0]),
-			Width:  	int32(s.defaultBackgroundImg.Size()[1]),
-			Type:  		int32(s.defaultBackgroundImg.Type()),
+			Bytes:                	img.ToBytes(),
+			Height:  	int32(img.Size()[0]),
+			Width:  	int32(img.Size()[1]),
+			Type:  		int32(img.Type()),
 		}
 
 		if err := stream.Send(&resp); err != nil {

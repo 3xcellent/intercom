@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"google.golang.org/grpc"
 	"image"
@@ -70,9 +71,14 @@ func main() {
 		log.Fatalf("can not connect with server %v", err)
 	}
 
-	// create stream
+	// create streams
 	client := proto.NewIntercomClient(conn)
 	serverBroadcastStream, err := client.ServerBroadcast(context.Background())
+	if err != nil {
+		log.Fatalf("openn stream error %v", err)
+	}
+
+	clientBroadcastStream, err := client.ClientBroadcast(context.Background())
 	if err != nil {
 		log.Fatalf("openn stream error %v", err)
 	}
@@ -109,12 +115,13 @@ func main() {
 			continue
 		}
 
+		fmt.Printf("videoCaptureImg.Size(): %v", videoCaptureImg.Size())
 		if !isBroadcasting {
 			isBroadcasting = true
 			fmt.Println("outgoing broadcast starting")
 		}
 
-		//broadcastImg(videoCaptureImg)
+		broadcastImg(clientBroadcastStream, videoCaptureImg)
 		resizeVideoPreviewImg(videoCaptureImg, &videoPreviewImg)
 		updateDisplayWithVideoPreview(&displayImg, videoPreviewImg)
 
@@ -123,6 +130,31 @@ func main() {
 			break
 		}
 	}
+}
+
+func broadcastImg(stream proto.Intercom_ClientBroadcastClient, img gocv.Mat) error {
+	req := proto.ClientBroadcastReq{
+		Name:                 "dude",
+		Height:               int32(img.Size()[0]),
+		Width:                int32(img.Size()[1]),
+		Type:                 int32(img.Type()),
+		Bytes:                img.ToBytes(),
+	}
+	if err := stream.Send(&req); err != nil {
+		log.Fatalf("can not send %v", err)
+	}
+
+	resp, err := stream.Recv()
+	if err == io.EOF {
+		return errors.New(io.EOF.Error())
+	}
+	if err != nil {
+		log.Fatalf("can not receive %v", err)
+	}
+	if resp.BroadcastAccepted != true {
+		return errors.New(resp.Reason)
+	}
+	return nil
 }
 
 func getServerBroadcastImg(stream proto.Intercom_ServerBroadcastClient) *gocv.Mat {
