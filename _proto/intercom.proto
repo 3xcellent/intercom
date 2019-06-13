@@ -4,28 +4,35 @@ option go_package = "proto";
 
 // Prime factors service definition.
 service Intercom {
-
-// Broadcast will send a greeting
-rpc Broadcast (stream BroadcastReq) returns (stream BroadcastResp) {}
-rpc ViewBroadcast (stream ViewBroadcastReq) returns (stream ViewBroadcastResp) {}
+     // Connect will hold the connection to the server
+     rpc ClientBroadcast (stream ClientBroadcastReq) returns (stream ClientBroadcastResp) {}
+     rpc ServerBroadcast (stream ServerBroadcastReq) returns (stream ServerBroadcastResp) {}
 }
 
-// The request message containing the image.
-message ViewBroadcastReq {
-    bytes bytes = 1;
+// The client request message containing the image.
+message ClientBroadcastReq {
+    string name = 1;
+    bytes bytes = 2;
 }
 
-// The response message containing the reply
-message ViewBroadcastResp {
-    bytes bytes = 1;
-}
-
-// The request message containing the image.
-message BroadcastReq {
-    bytes bytes = 1;
+// The server response message.
+message ClientBroadcastResp {
+    uint32 status = 1;
+    bool broadcast_accepted = 2;
+    string reason = 3;
 }
 
 // The response message containing the reply
-message BroadcastResp {
-    bytes bytes = 1;
+message ServerBroadcastReq {
+    string name = 1;
+}
+
+// The response message containing the reply
+message ServerBroadcastResp {
+    string name = 1;
+    bool is_currently_broadcasting = 2;
+    int32 height = 3;
+    int32 width = 4;
+    int32 type = 5;
+    bytes bytes = 6;
 }
