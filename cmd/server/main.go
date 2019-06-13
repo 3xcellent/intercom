@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -28,7 +29,7 @@ type intercomServer struct {
 	clients []string
 	currentBroadcastName string
 	currentBroadcastImg gocv.Mat
-	isCurrentlyBroadcasting bool
+	lastBroadcastReceived time.Time
 	defaultBackgroundImg gocv.Mat
 }
 
@@ -50,7 +51,6 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 		if err == io.EOF {
 			// return will close stream from server side
 			log.Printf("ClientBroadcast end: %s\n", s.currentBroadcastName)
-			s.isCurrentlyBroadcasting = false
 			return nil
 		}
 		if err != nil {
@@ -58,15 +58,17 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 			continue
 		}
 
+		fmt.Printf("broadcasting %v", broadcast == nil)
+
 		resp := proto.ClientBroadcastResp{}
 
-		if 	s.isCurrentlyBroadcasting && s.currentBroadcastName != broadcast.Name {
+		if 	s.isCurrentlyBroadcasting() && s.currentBroadcastName != broadcast.Name {
 			resp.BroadcastAccepted = false
 			resp.Reason = "BACKOFF"
 			resp.Status = 1
 		} else {
-			s.isCurrentlyBroadcasting = true
 			resp.BroadcastAccepted = true
+			s.lastBroadcastReceived = time.Now()
 			s.currentBroadcastName = broadcast.Name
 
 			// update broadcastImg and send it to stream
@@ -81,6 +83,10 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 			log.Printf("ClientBroadcastResp send error %v\n", err)
 		}
 	}
+}
+
+func (s *intercomServer) isCurrentlyBroadcasting() bool {
+	return s.lastBroadcastReceived.Add(time.Second).After(time.Now())
 }
 
 func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastServer) error {
@@ -113,12 +119,12 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 		s.clients = []string{req.Name}
 
 		img := &s.defaultBackgroundImg
-		if s.isCurrentlyBroadcasting {
+		if s.isCurrentlyBroadcasting() {
 			img = &s.currentBroadcastImg
 		}
 
 		resp := proto.ServerBroadcastResp{
-			IsCurrentlyBroadcasting: true,
+			IsCurrentlyBroadcasting: s.isCurrentlyBroadcasting(),
 			Name:                 	s.currentBroadcastName,
 			Bytes:                	img.ToBytes(),
 			Height:  	int32(img.Size()[0]),

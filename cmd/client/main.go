@@ -49,12 +49,6 @@ func main() {
 	displayImg := bgImg.Clone()
 	defer displayImg.Close()
 
-	webcam, err := gocv.OpenVideoCapture(deviceID)
-	if err != nil {
-		fmt.Printf("Error opening video capture device: %v\n", deviceID)
-		return
-	}
-	defer webcam.Close()
 
 	window := gocv.NewWindow("Capture Window")
 	defer window.Close()
@@ -83,44 +77,60 @@ func main() {
 		log.Fatalf("openn stream error %v", err)
 	}
 
-
-
-	receivingBroadcast := false
+	isReceivingBroadcast := false
 	isBroadcasting := false
 	wantToBroadcast := false
 	wantToQuit := false
 
+	// main program loop
+	var webcam *gocv.VideoCapture
+
 	for {
-		serverImg := getServerBroadcastImg(serverBroadcastStream)
-		if serverImg.Empty() && receivingBroadcast {
-			receivingBroadcast = false
-			displayImg = bgImg.Clone()
-			fmt.Println("incoming broadcast ended")
-		}
-		if !receivingBroadcast && serverImg != nil {
-			receivingBroadcast = true
-			fmt.Println("receiving incoming broadcast")
-			fmt.Println("placing window at: %d,%d", videoBroadcastX, videoBroadcastY)
-
-		}
-
-		if receivingBroadcast {
-			resizeVideoBroadcastImg(serverImg, &videoBroadcastImg)
-			updateDisplayWithVideoBroadcast(&displayImg, videoBroadcastImg)
-		}
-
-
-		window.IMShow(displayImg)
+		displayImg = bgImg.Clone()
 		switch  window.WaitKey(1) {
 		case 27:
 			wantToQuit = true
 		case 32:
-			wantToBroadcast = true
+			wantToBroadcast = !wantToBroadcast
 		default:
-			continue
+		}
+
+		if wantToQuit {
+			if isBroadcasting {
+				isBroadcasting = false
+				webcam.Close()
+			}
+			break
+		}
+
+		serverImg := getServerBroadcastImg(serverBroadcastStream)
+		if isReceivingBroadcast {
+			if serverImg == nil || serverImg.Empty() {
+				isReceivingBroadcast = false
+
+				fmt.Println("incoming broadcast ended")
+			} else {
+				resizeVideoBroadcastImg(serverImg, &videoBroadcastImg)
+				updateDisplayImgWithVideoBroadcast(&displayImg, videoBroadcastImg)
+			}
+		} else {
+			if serverImg != nil {
+				isReceivingBroadcast = true
+				fmt.Println("receiving incoming broadcast")
+				fmt.Println("placing window at: %d,%d", videoBroadcastX, videoBroadcastY)
+			}
 		}
 
 		if wantToBroadcast {
+			if !isBroadcasting {
+				webcam, err = gocv.OpenVideoCapture(deviceID)
+				if err != nil {
+					fmt.Printf("Error opening video capture device: %v\n", deviceID)
+					return
+				}
+				isBroadcasting = true
+				fmt.Println("outgoing broadcast starting")
+			}
 			videoCaptureImg := getVideoCaptureImg(webcam)
 
 			if videoCaptureImg.Empty() {
@@ -131,20 +141,17 @@ func main() {
 				continue
 			}
 
-			if !isBroadcasting {
-				isBroadcasting = true
-				fmt.Println("outgoing broadcast starting")
-			}
-
 			broadcastImg(clientBroadcastStream, videoCaptureImg)
 			resizeVideoPreviewImg(videoCaptureImg, &videoPreviewImg)
 			updateDisplayWithVideoPreview(&displayImg, videoPreviewImg)
+		} else {
+			if isBroadcasting {
+				isBroadcasting = false
+				webcam.Close()
+			}
 		}
 
-
-		if wantToQuit {
-			break
-		}
+		window.IMShow(displayImg)
 	}
 }
 
@@ -211,17 +218,17 @@ func getSizedBackgroundImg(filename string, img *gocv.Mat) {
 	gocv.Resize(defaultImg, img, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
 }
 
-func updateDisplayWithVideoBroadcast(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
-	for x := 0; x <= mirrorImg.Size()[0]-1; x++ {
-		for y := 0; y <= videoBroadcastWidth; y++ {
+func updateDisplayImgWithVideoBroadcast(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
+	for x := 0; x < mirrorImg.Size()[0]; x++ {
+		for y := 0; y < videoBroadcastWidth; y++ {
 			displayImg.SetIntAt3(x+videoBroadcastX, y+videoBroadcastY, 0, mirrorImg.GetIntAt3(x, y, 0))
 		}
 	}
 }
 
 func updateDisplayWithVideoPreview(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
-	for x := 0; x <= mirrorImg.Size()[0]-1; x++ {
-		for y := 0; y <= mirrorWindowWidth; y++ {
+	for x := 0; x < mirrorImg.Size()[0]; x++ {
+		for y := 0; y < mirrorWindowWidth; y++ {
 			displayImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, mirrorImg.GetIntAt3(x, mirrorWindowWidth-y, 0))
 		}
 	}
