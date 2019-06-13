@@ -53,8 +53,6 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 			continue
 		}
 
-		fmt.Printf("broadcasting %v", broadcast == nil)
-
 		resp := proto.ClientBroadcastResp{}
 
 		if 	s.isCurrentlyBroadcasting() && s.currentBroadcastName != broadcast.Name {
@@ -98,7 +96,7 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 		}
 
 		// receive data from stream
-		req, err := stream.Recv()
+		_, err := stream.Recv()
 		if err == io.EOF {
 			// return will close stream from server side
 			log.Println("exit")
@@ -109,19 +107,17 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 			continue
 		}
 
-		// process data
-		// TODO check if already listed as a client??
-		s.clients = []string{req.Name}
-
-		img := &s.currentBroadcastImg
-
 		resp := proto.ServerBroadcastResp{
 			IsCurrentlyBroadcasting: s.isCurrentlyBroadcasting(),
-			Name:                 	 s.currentBroadcastName,
-			Bytes:      			 img.ToBytes(),
-			Height:  				 int32(img.Size()[0]),
-			Width:  				 int32(img.Size()[1]),
-			Type:  					 int32(img.Type()),
+		}
+		if resp.IsCurrentlyBroadcasting {
+			img := &s.currentBroadcastImg
+
+			resp.Name = s.currentBroadcastName
+			resp.Bytes = img.ToBytes()
+			resp.Height = int32(img.Size()[0])
+			resp.Width = int32(img.Size()[1])
+			resp.Type = int32(img.Type())
 		}
 
 		if err := stream.Send(&resp); err != nil {

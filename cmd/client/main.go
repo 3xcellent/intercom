@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc"
 	"image"
 	"io"
 	"log"
@@ -12,6 +11,7 @@ import (
 	"os"
 
 	"github.com/3xcellent/intercom/proto"
+	"google.golang.org/grpc"
 	"gocv.io/x/gocv"
 )
 
