@@ -18,10 +18,6 @@ import (
 const (
 	screenWidth  = 1280/2
 	screenHeight = 720/2
-	//mirrorWindowWidth = screenWidth/4
-	//mirrorWindowHeight = screenHeight/4
-	//mirrorWindowX = screenHeight - mirrorWindowHeight - (mirrorWindowHeight/4)
-	//mirrorWindowY = screenWidth - mirrorWindowWidth - (mirrorWindowWidth/4)
 	matType = gocv.MatTypeCV8UC3
 )
 
@@ -30,7 +26,6 @@ type intercomServer struct {
 	currentBroadcastName string
 	currentBroadcastImg gocv.Mat
 	lastBroadcastReceived time.Time
-	defaultBackgroundImg gocv.Mat
 }
 
 func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastServer) error {
@@ -118,18 +113,15 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 		// TODO check if already listed as a client??
 		s.clients = []string{req.Name}
 
-		img := &s.defaultBackgroundImg
-		if s.isCurrentlyBroadcasting() {
-			img = &s.currentBroadcastImg
-		}
+		img := &s.currentBroadcastImg
 
 		resp := proto.ServerBroadcastResp{
 			IsCurrentlyBroadcasting: s.isCurrentlyBroadcasting(),
-			Name:                 	s.currentBroadcastName,
-			Bytes:                	img.ToBytes(),
-			Height:  	int32(img.Size()[0]),
-			Width:  	int32(img.Size()[1]),
-			Type:  		int32(img.Type()),
+			Name:                 	 s.currentBroadcastName,
+			Bytes:      			 img.ToBytes(),
+			Height:  				 int32(img.Size()[0]),
+			Width:  				 int32(img.Size()[1]),
+			Type:  					 int32(img.Type()),
 		}
 
 		if err := stream.Send(&resp); err != nil {
@@ -152,9 +144,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	proto.RegisterIntercomServer(grpcServer, &intercomServer{
-		defaultBackgroundImg: bImg,
-	})
+	proto.RegisterIntercomServer(grpcServer, &intercomServer{})
 
 	log.Println("Listening on tcp://localhost:6000")
 

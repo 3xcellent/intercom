@@ -19,15 +19,15 @@ const (
 	screenWidth  = 1280/2
 	screenHeight = 720/2
 
-	mirrorWindowWidth = screenWidth/4
-	mirrorWindowHeight = screenHeight/4
-	mirrorWindowX = screenHeight - mirrorWindowHeight - (mirrorWindowHeight/4)
-	mirrorWindowY = screenWidth - mirrorWindowWidth - (mirrorWindowWidth/4)
+	outPreviewWidth = screenWidth/4
+	outPreviewHeight = screenHeight/4
+	outPreviewX = screenHeight - outPreviewHeight - (outPreviewHeight/4)
+	outPreviewY = screenWidth - outPreviewWidth - (outPreviewWidth/4)
 
-	videoBroadcastWidth = screenWidth/2
-	videoBroadcastHeight = screenHeight/2
-	videoBroadcastX = screenHeight/2 - videoBroadcastHeight/2 - videoBroadcastHeight/4
-	videoBroadcastY = screenWidth/2 - videoBroadcastWidth/2 - videoBroadcastWidth/4
+	inBroadcastWidth = screenWidth/2
+	inBroadcastHeight = screenHeight/2
+	inBroadcastX = screenHeight/2 - inBroadcastHeight/2 - inBroadcastHeight/4
+	inBroadcastY = screenWidth/2 - inBroadcastWidth/2 - inBroadcastWidth/4
 
 	matType = gocv.MatTypeCV8UC3
 )
@@ -49,14 +49,13 @@ func main() {
 	displayImg := bgImg.Clone()
 	defer displayImg.Close()
 
-
 	window := gocv.NewWindow("Capture Window")
 	defer window.Close()
 
-	videoPreviewImg := gocv.NewMatWithSize(mirrorWindowHeight, mirrorWindowWidth, gocv.MatTypeCV8UC3)
+	videoPreviewImg := gocv.NewMatWithSize(outPreviewHeight, outPreviewWidth, gocv.MatTypeCV8UC3)
 	defer videoPreviewImg.Close()
 
-	videoBroadcastImg := gocv.NewMatWithSize(videoBroadcastHeight, videoBroadcastWidth, gocv.MatTypeCV8UC3)
+	inBroadcastImg := gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3)
 	defer videoPreviewImg.Close()
 
 	// dail server
@@ -82,9 +81,9 @@ func main() {
 	wantToBroadcast := false
 	wantToQuit := false
 
-	// main program loop
 	var webcam *gocv.VideoCapture
 
+	// main program loop
 	for {
 		displayImg = bgImg.Clone()
 		switch  window.WaitKey(1) {
@@ -107,17 +106,16 @@ func main() {
 		if isReceivingBroadcast {
 			if serverImg == nil || serverImg.Empty() {
 				isReceivingBroadcast = false
-
 				fmt.Println("incoming broadcast ended")
 			} else {
-				resizeVideoBroadcastImg(serverImg, &videoBroadcastImg)
-				updateDisplayImgWithVideoBroadcast(&displayImg, videoBroadcastImg)
+				resizeInBroadcastImg(serverImg, &inBroadcastImg)
+				updateDisplayImgWithinBroadcast(&displayImg, inBroadcastImg)
 			}
 		} else {
 			if serverImg != nil {
 				isReceivingBroadcast = true
 				fmt.Println("receiving incoming broadcast")
-				fmt.Println("placing window at: %d,%d", videoBroadcastX, videoBroadcastY)
+				fmt.Println("placing window at: %d,%d", inBroadcastX, inBroadcastY)
 			}
 		}
 
@@ -218,18 +216,18 @@ func getSizedBackgroundImg(filename string, img *gocv.Mat) {
 	gocv.Resize(defaultImg, img, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
 }
 
-func updateDisplayImgWithVideoBroadcast(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
+func updateDisplayImgWithinBroadcast(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
 	for x := 0; x < mirrorImg.Size()[0]; x++ {
-		for y := 0; y < videoBroadcastWidth; y++ {
-			displayImg.SetIntAt3(x+videoBroadcastX, y+videoBroadcastY, 0, mirrorImg.GetIntAt3(x, y, 0))
+		for y := 0; y < inBroadcastWidth; y++ {
+			displayImg.SetIntAt3(x+inBroadcastX, y+inBroadcastY, 0, mirrorImg.GetIntAt3(x, y, 0))
 		}
 	}
 }
 
 func updateDisplayWithVideoPreview(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
 	for x := 0; x < mirrorImg.Size()[0]; x++ {
-		for y := 0; y < mirrorWindowWidth; y++ {
-			displayImg.SetIntAt3(x+mirrorWindowX, y+mirrorWindowY, 0, mirrorImg.GetIntAt3(x, mirrorWindowWidth-y, 0))
+		for y := 0; y < outPreviewWidth; y++ {
+			displayImg.SetIntAt3(x+outPreviewX, y+outPreviewY, 0, mirrorImg.GetIntAt3(x, outPreviewWidth-y, 0))
 		}
 	}
 }
@@ -245,13 +243,13 @@ func getVideoCaptureImg(webcam *gocv.VideoCapture) gocv.Mat {
 
 func resizeVideoPreviewImg(videoCaptureImg gocv.Mat, sizedImg *gocv.Mat) {
 	screenCapRatio := float64(float64(videoCaptureImg.Size()[1])/float64(videoCaptureImg.Size()[0]))
-	mirrorWindowScaledHeight := int(math.Floor(mirrorWindowWidth/screenCapRatio))
-	gocv.Resize(videoCaptureImg, sizedImg, image.Point{X: mirrorWindowWidth, Y: mirrorWindowScaledHeight}, 0, 0, gocv.InterpolationDefault)
+	outPreviewScaledHeight := int(math.Floor(outPreviewWidth/screenCapRatio))
+	gocv.Resize(videoCaptureImg, sizedImg, image.Point{X: outPreviewWidth, Y: outPreviewScaledHeight}, 0, 0, gocv.InterpolationDefault)
 }
 
 
-func resizeVideoBroadcastImg(origImg *gocv.Mat, sizedImg *gocv.Mat) {
+func resizeInBroadcastImg(origImg *gocv.Mat, sizedImg *gocv.Mat) {
 	screenCapRatio := float64(float64(origImg.Size()[1])/float64(origImg.Size()[0]))
-	scaledHeight := int(math.Floor(videoBroadcastWidth/screenCapRatio))
-	gocv.Resize(*origImg, sizedImg, image.Point{X: videoBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
+	scaledHeight := int(math.Floor(inBroadcastWidth/screenCapRatio))
+	gocv.Resize(*origImg, sizedImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
 }
