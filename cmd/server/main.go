@@ -75,7 +75,6 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 				log.Printf("cannot create NewMatFromBytes: %v\n", err)
 				continue
 			}
-			fmt.Printf("s.currentBroadcastImg.Size() %v", s.currentBroadcastImg.Size())
 		}
 
 		if err := stream.Send(&resp); err != nil {

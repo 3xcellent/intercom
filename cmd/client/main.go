@@ -26,8 +26,8 @@ const (
 
 	videoBroadcastWidth = screenWidth/2
 	videoBroadcastHeight = screenHeight/2
-	videoBroadcastX = screenHeight/2 - videoBroadcastHeight/2
-	videoBroadcastY = screenWidth/2 - videoBroadcastWidth/2
+	videoBroadcastX = screenHeight/2 - videoBroadcastHeight/2 - videoBroadcastHeight/4
+	videoBroadcastY = screenWidth/2 - videoBroadcastWidth/2 - videoBroadcastWidth/4
 
 	matType = gocv.MatTypeCV8UC3
 )
@@ -83,14 +83,18 @@ func main() {
 		log.Fatalf("openn stream error %v", err)
 	}
 
+
+
 	receivingBroadcast := false
 	isBroadcasting := false
+	wantToBroadcast := false
+	wantToQuit := false
 
-	// main loop
 	for {
 		serverImg := getServerBroadcastImg(serverBroadcastStream)
-		if serverImg == nil && receivingBroadcast {
+		if serverImg.Empty() && receivingBroadcast {
 			receivingBroadcast = false
+			displayImg = bgImg.Clone()
 			fmt.Println("incoming broadcast ended")
 		}
 		if !receivingBroadcast && serverImg != nil {
@@ -105,28 +109,40 @@ func main() {
 			updateDisplayWithVideoBroadcast(&displayImg, videoBroadcastImg)
 		}
 
-		videoCaptureImg := getVideoCaptureImg(webcam)
 
-		if videoCaptureImg.Empty() {
-			if isBroadcasting {
-				isBroadcasting = false
-				fmt.Println("outgoing broadcast ended")
-			}
+		window.IMShow(displayImg)
+		switch  window.WaitKey(1) {
+		case 27:
+			wantToQuit = true
+		case 32:
+			wantToBroadcast = true
+		default:
 			continue
 		}
 
-		fmt.Printf("videoCaptureImg.Size(): %v", videoCaptureImg.Size())
-		if !isBroadcasting {
-			isBroadcasting = true
-			fmt.Println("outgoing broadcast starting")
+		if wantToBroadcast {
+			videoCaptureImg := getVideoCaptureImg(webcam)
+
+			if videoCaptureImg.Empty() {
+				if isBroadcasting {
+					isBroadcasting = false
+					fmt.Println("outgoing broadcast ended")
+				}
+				continue
+			}
+
+			if !isBroadcasting {
+				isBroadcasting = true
+				fmt.Println("outgoing broadcast starting")
+			}
+
+			broadcastImg(clientBroadcastStream, videoCaptureImg)
+			resizeVideoPreviewImg(videoCaptureImg, &videoPreviewImg)
+			updateDisplayWithVideoPreview(&displayImg, videoPreviewImg)
 		}
 
-		broadcastImg(clientBroadcastStream, videoCaptureImg)
-		resizeVideoPreviewImg(videoCaptureImg, &videoPreviewImg)
-		updateDisplayWithVideoPreview(&displayImg, videoPreviewImg)
 
-		window.IMShow(displayImg)
-		if window.WaitKey(1) == 27 {
+		if wantToQuit {
 			break
 		}
 	}
