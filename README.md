@@ -47,3 +47,20 @@ protoc \
 	export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/
 	alias opencvflags="pkg-config --cflags --libs opencv"
 	```
+
+## Running
+1. Start Server
+    ```
+    cd cmd/server
+    go run main.go
+    ```
+    
+1. Start Client
+    ```
+    cd cmd/client
+    go run main.go 0 [path to background image, hopefully a kitten]
+    ```
+    
+    Press [Spacebar] to broadcast
+    
+    Press [Esc] to exit
