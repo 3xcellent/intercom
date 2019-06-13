@@ -1,24 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"gocv.io/x/gocv"
-	"image"
 	"io"
 	"log"
 	"net"
-	"os"
 	"time"
 
 	"google.golang.org/grpc"
 
 	"github.com/3xcellent/intercom/proto"
-)
-
-const (
-	screenWidth  = 1280/2
-	screenHeight = 720/2
-	matType = gocv.MatTypeCV8UC3
 )
 
 type intercomServer struct {
@@ -128,12 +119,6 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 
 func main() {
 	// create listener
-	filename := os.Args[1]
-
-	// prepare displayImg
-	bImg := gocv.NewMatWithSize(screenHeight, screenWidth, matType)
-	getSizedBroadcastImg(filename, &bImg)
-
 	l, err := net.Listen("tcp", ":6000")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -148,18 +133,3 @@ func main() {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
-
-
-func getSizedBroadcastImg(filename string, img *gocv.Mat) {
-	defaultImg := gocv.IMRead(filename, gocv.IMReadColor)
-	defer defaultImg.Close()
-
-	if defaultImg.Empty() {
-		fmt.Printf("Error reading image from: %v\n", filename)
-		return
-	} else {
-		fmt.Printf("Opening image from: %v | %#v\n", filename, defaultImg.Size())
-	}
-	gocv.Resize(defaultImg, img, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
-}
-
