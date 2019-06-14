@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"image"
 	"io"
@@ -32,31 +31,55 @@ const (
 	matType = gocv.MatTypeCV8UC3
 )
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("How to run:\n\tintercom [camera ID] [path/to/background_img]")
+type intercomClient struct {
+	window *gocv.Window
+	webcam *gocv.VideoCapture
+	deviceID string
+
+	serverBroadcastStream proto.Intercom_ServerBroadcastClient
+	clientBroadcastStream proto.Intercom_ClientBroadcastClient
+
+	bgImg gocv.Mat
+	displayImg gocv.Mat
+	videoPreviewImg gocv.Mat
+	inBroadcastImg gocv.Mat
+
+	isReceivingBroadcast bool
+	isSendingBroadcast   bool
+	wantToBroadcast      bool
+	wantToQuit           bool
+}
+
+func (c *intercomClient) loadBackgroundImg(path string) {
+	c.bgImg = gocv.NewMatWithSize(screenHeight, screenWidth, matType)
+	defaultImg := gocv.IMRead(path, gocv.IMReadColor)
+	defer defaultImg.Close()
+
+	if defaultImg.Empty() {
+		fmt.Printf("Error reading image from: %v\n", path)
 		return
+	} else {
+		fmt.Printf("Opening image from: %v | %#v\n", path, defaultImg.Size())
 	}
-	deviceID := os.Args[1]
-	filename := os.Args[2]
+	gocv.Resize(defaultImg, &c.bgImg, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
+	c.ResetDisplayImg()
+}
 
-	// prepare displayImg
-	bgImg := gocv.NewMatWithSize(screenHeight, screenWidth, matType)
-	getSizedBackgroundImg(filename, &bgImg)
-	defer bgImg.Close()
+func (c *intercomClient) shutdown() {
+	if c.isSendingBroadcast {
+		c.isSendingBroadcast = false
+		c.webcam.Close()
+	}
 
-	displayImg := bgImg.Clone()
-	defer displayImg.Close()
+	c.bgImg.Close()
+	c.displayImg.Close()
+	c.videoPreviewImg.Close()
+	c.inBroadcastImg.Close()
 
-	window := gocv.NewWindow("Capture Window")
-	defer window.Close()
+	c.window.Close()
+}
 
-	videoPreviewImg := gocv.NewMatWithSize(outPreviewHeight, outPreviewWidth, gocv.MatTypeCV8UC3)
-	defer videoPreviewImg.Close()
-
-	inBroadcastImg := gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3)
-	defer videoPreviewImg.Close()
-
+func (c *intercomClient) connectToServer() {
 	// dail server
 	conn, err := grpc.Dial(":6000", grpc.WithInsecure())
 	if err != nil {
@@ -65,189 +88,205 @@ func main() {
 
 	// create streams
 	client := proto.NewIntercomClient(conn)
-	serverBroadcastStream, err := client.ServerBroadcast(context.Background())
+	c.serverBroadcastStream, err = client.ServerBroadcast(context.Background())
 	if err != nil {
 		log.Fatalf("openn stream error %v", err)
 	}
 
-	clientBroadcastStream, err := client.ClientBroadcast(context.Background())
+	c.clientBroadcastStream, err = client.ClientBroadcast(context.Background())
 	if err != nil {
 		log.Fatalf("openn stream error %v", err)
 	}
+}
 
-	isReceivingBroadcast := false
-	isBroadcasting := false
-	wantToBroadcast := false
-	wantToQuit := false
+func (c *intercomClient) ResetDisplayImg() {
+	c.displayImg = c.bgImg.Clone()
+}
 
-	var webcam *gocv.VideoCapture
-
-	// main program loop
-	for {
-		displayImg = bgImg.Clone()
-		switch  window.WaitKey(1) {
-		case 27:
-			wantToQuit = true
-		case 32:
-			wantToBroadcast = !wantToBroadcast
-		default:
-		}
-
-		if wantToQuit {
-			if isBroadcasting {
-				isBroadcasting = false
-				webcam.Close()
-			}
-			break
-		}
-
-		serverImg := getServerBroadcastImg(serverBroadcastStream)
-		if isReceivingBroadcast {
-			if serverImg == nil || serverImg.Empty() {
-				isReceivingBroadcast = false
-				fmt.Println("incoming broadcast ended")
-			} else {
-				resizeInBroadcastImg(serverImg, &inBroadcastImg)
-				updateDisplayImgWithinBroadcast(&displayImg, inBroadcastImg)
-			}
-		} else {
-			if serverImg != nil {
-				isReceivingBroadcast = true
-				fmt.Println("receiving incoming broadcast")
-			}
-		}
-
-		if wantToBroadcast {
-			if !isBroadcasting {
-				webcam, err = gocv.OpenVideoCapture(deviceID)
-				if err != nil {
-					fmt.Printf("Error opening video capture device: %v\n", deviceID)
-					return
-				}
-				isBroadcasting = true
-				fmt.Println("outgoing broadcast starting")
-			}
-			videoCaptureImg := getVideoCaptureImg(webcam)
-
-			if videoCaptureImg.Empty() {
-				if isBroadcasting {
-					isBroadcasting = false
-					fmt.Println("outgoing broadcast ended")
-				}
-				continue
-			}
-
-			broadcastImg(clientBroadcastStream, videoCaptureImg)
-			resizeVideoPreviewImg(videoCaptureImg, &videoPreviewImg)
-			updateDisplayWithVideoPreview(&displayImg, videoPreviewImg)
-		} else {
-			if isBroadcasting {
-				isBroadcasting = false
-				webcam.Close()
-			}
-		}
-
-		window.IMShow(displayImg)
+func (c *intercomClient) handleKeyEvents() {
+	switch  c.window.WaitKey(1) {
+	case 27:
+		c.wantToQuit = true
+	case 32:
+		c.wantToBroadcast = !c.wantToBroadcast
+	default:
 	}
 }
 
-func broadcastImg(stream proto.Intercom_ClientBroadcastClient, img gocv.Mat) error {
-	req := proto.ClientBroadcastReq{
-		Name:                 "dude",
-		Height:               int32(img.Size()[0]),
-		Width:                int32(img.Size()[1]),
-		Type:                 int32(img.Type()),
-		Bytes:                img.ToBytes(),
-	}
-	if err := stream.Send(&req); err != nil {
-		log.Fatalf("can not send %v", err)
-	}
-
-	resp, err := stream.Recv()
-	if err == io.EOF {
-		return errors.New(io.EOF.Error())
-	}
-	if err != nil {
-		log.Fatalf("can not receive %v", err)
-	}
-	if resp.BroadcastAccepted != true {
-		return errors.New(resp.Reason)
-	}
-	return nil
-}
-
-func getServerBroadcastImg(stream proto.Intercom_ServerBroadcastClient) *gocv.Mat {
+func (c *intercomClient) handleReceiveBroadcast() {
 	req := proto.ServerBroadcastReq{Name: "dude"}
-	if err := stream.Send(&req); err != nil {
+	if err := c.serverBroadcastStream.Send(&req); err != nil {
 		log.Fatalf("can not send %v", err)
 	}
 
-	resp, err := stream.Recv()
+	resp, err := c.serverBroadcastStream.Recv()
 	if err == io.EOF {
-		return nil
+		return
 	}
 	if err != nil {
 		log.Fatalf("can not receive %v", err)
 	}
 	if !resp.GetIsCurrentlyBroadcasting() {
-		return nil
+		if c.isReceivingBroadcast {
+			c.isReceivingBroadcast = false
+			c.ResetDisplayImg()
+		}
+		return
 	}
 
-	bImg, err := gocv.NewMatFromBytes(int(resp.Height), int(resp.Width), gocv.MatType(resp.Type), resp.Bytes)
+	serverImg, err := gocv.NewMatFromBytes(int(resp.Height), int(resp.Width), gocv.MatType(resp.Type), resp.Bytes)
 	if err != nil {
 		log.Fatalf("can not create NewMatFromBytes %v\n", err)
-		return nil
-	}
-	return &bImg
-}
-
-func getSizedBackgroundImg(filename string, img *gocv.Mat) {
-	defaultImg := gocv.IMRead(filename, gocv.IMReadColor)
-	defer defaultImg.Close()
-
-	if defaultImg.Empty() {
-		fmt.Printf("Error reading image from: %v\n", filename)
 		return
+	}
+
+	if serverImg.Empty() {
+		c.isReceivingBroadcast = false
+		c.ResetDisplayImg()
+		fmt.Println("incoming broadcast ended")
+		return
+	}
+
+	if !c.isReceivingBroadcast {
+		c.isReceivingBroadcast = true
+		fmt.Println("receiving incoming broadcast")
+	}
+
+	screenCapRatio := float64(float64(serverImg.Size()[1])/float64(serverImg.Size()[0]))
+	scaledHeight := int(math.Floor(inBroadcastWidth/screenCapRatio))
+	gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
+
+}
+
+func (c *intercomClient) handleSendBroadcast() {
+	if c.wantToBroadcast {
+		c.sendVideoCapture()
 	} else {
-		fmt.Printf("Opening image from: %v | %#v\n", filename, defaultImg.Size())
-	}
-	gocv.Resize(defaultImg, img, image.Point{X: screenWidth, Y: screenHeight}, 0, 0, gocv.InterpolationDefault)
-}
-
-func updateDisplayImgWithinBroadcast(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
-	for x := 0; x < mirrorImg.Size()[0]; x++ {
-		for y := 0; y < inBroadcastWidth; y++ {
-			displayImg.SetIntAt3(x+inBroadcastX, y+inBroadcastY, 0, mirrorImg.GetIntAt3(x, y, 0))
+		if c.isSendingBroadcast {
+			c.isSendingBroadcast = false
+			c.webcam.Close()
 		}
 	}
 }
 
-func updateDisplayWithVideoPreview(displayImg *gocv.Mat, mirrorImg gocv.Mat) {
-	for x := 0; x < mirrorImg.Size()[0]; x++ {
-		for y := 0; y < outPreviewWidth; y++ {
-			displayImg.SetIntAt3(x+outPreviewX, y+outPreviewY, 0, mirrorImg.GetIntAt3(x, outPreviewWidth-y, 0))
+func (c *intercomClient) sendVideoCapture() {
+	if !c.isSendingBroadcast {
+		var err error
+		c.webcam, err = gocv.OpenVideoCapture(c.deviceID)
+		if err != nil {
+			fmt.Printf("Error opening video capture device: %v\n", c.deviceID)
+			return
 		}
+		c.isSendingBroadcast = true
+		fmt.Println("outgoing broadcast starting")
 	}
-}
 
-func getVideoCaptureImg(webcam *gocv.VideoCapture) gocv.Mat {
-	videoCapture := gocv.NewMat()
-	if ok := webcam.Read(&videoCapture); !ok {
+	videoCaptureImg := gocv.NewMat()
+	defer videoCaptureImg.Close()
+
+	if ok := c.webcam.Read(&videoCaptureImg); !ok {
 		fmt.Println("didn't read from cam")
-		return videoCapture
 	}
-	return videoCapture
-}
 
-func resizeVideoPreviewImg(videoCaptureImg gocv.Mat, sizedImg *gocv.Mat) {
+	if videoCaptureImg.Empty() {
+		if c.isSendingBroadcast {
+			c.isSendingBroadcast = false
+			fmt.Println("outgoing broadcast ended")
+		}
+		return
+	}
+
+	req := proto.ClientBroadcastReq{
+		Name:                 "dude",
+		Height:               int32(videoCaptureImg.Size()[0]),
+		Width:                int32(videoCaptureImg.Size()[1]),
+		Type:                 int32(videoCaptureImg.Type()),
+		Bytes:                videoCaptureImg.ToBytes(),
+	}
+	if err := c.clientBroadcastStream.Send(&req); err != nil {
+		log.Fatalf("can not send %v", err)
+		return
+	}
+
+	resp, err := c.clientBroadcastStream.Recv()
+	if err == io.EOF {
+		fmt.Println(io.EOF.Error())
+		return
+	}
+	if err != nil {
+		log.Fatalf("can not receive %v", err)
+	}
+	if resp.BroadcastAccepted != true {
+		fmt.Println("Cannot send broadcast: " + resp.Reason)
+		return
+	}
+
 	screenCapRatio := float64(float64(videoCaptureImg.Size()[1])/float64(videoCaptureImg.Size()[0]))
 	outPreviewScaledHeight := int(math.Floor(outPreviewWidth/screenCapRatio))
-	gocv.Resize(videoCaptureImg, sizedImg, image.Point{X: outPreviewWidth, Y: outPreviewScaledHeight}, 0, 0, gocv.InterpolationDefault)
+	gocv.Resize(videoCaptureImg, &c.videoPreviewImg, image.Point{X: outPreviewWidth, Y: outPreviewScaledHeight}, 0, 0, gocv.InterpolationDefault)
+
 }
 
+func (c *intercomClient) draw() {
+	if c.isReceivingBroadcast {
+		for x := 0; x < c.inBroadcastImg.Size()[0]; x++ {
+			for y := 0; y < inBroadcastWidth; y++ {
+				c.displayImg.SetIntAt3(x+inBroadcastX, y+inBroadcastY, 0, c.inBroadcastImg.GetIntAt3(x, y, 0))
+			}
+		}
+	}
 
-func resizeInBroadcastImg(origImg *gocv.Mat, sizedImg *gocv.Mat) {
-	screenCapRatio := float64(float64(origImg.Size()[1])/float64(origImg.Size()[0]))
-	scaledHeight := int(math.Floor(inBroadcastWidth/screenCapRatio))
-	gocv.Resize(*origImg, sizedImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
+	if c.isSendingBroadcast {
+		for x := 0; x < c.videoPreviewImg.Size()[0]; x++ {
+			for y := 0; y < outPreviewWidth; y++ {
+				c.displayImg.SetIntAt3(x+outPreviewX, y+outPreviewY, 0, c.videoPreviewImg.GetIntAt3(x, outPreviewWidth-y, 0))
+			}
+		}
+	}
+
+	c.window.IMShow(c.displayImg)
+}
+
+func (c *intercomClient) Run() {
+	c.connectToServer()
+
+	// main program loop
+	for {
+		//c.ResetDisplayImg()
+		c.handleKeyEvents()
+
+		if c.wantToQuit {
+			c.shutdown()
+			break
+		}
+
+		c.handleReceiveBroadcast()
+		c.handleSendBroadcast()
+		c.draw()
+	}
+}
+
+func createIntercomClient(vidoeCaptureDeviceId, filename string) intercomClient {
+	client := intercomClient{
+		window: gocv.NewWindow("Capture Window"),
+		deviceID: vidoeCaptureDeviceId,
+		videoPreviewImg: gocv.NewMatWithSize(outPreviewHeight, outPreviewWidth, gocv.MatTypeCV8UC3),
+		inBroadcastImg: gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3),
+	}
+
+	client.loadBackgroundImg(filename)
+
+	return client
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("How to run:\n\tintercom [camera ID] [path/to/background.img]")
+		return
+	}
+	deviceID := os.Args[1]
+	filename := os.Args[2]
+
+	client := createIntercomClient(deviceID, filename)
+	client.Run()
 }

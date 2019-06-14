@@ -1,14 +1,13 @@
 package main
 
 import (
-	"gocv.io/x/gocv"
 	"io"
 	"log"
 	"net"
 	"time"
 
+	"gocv.io/x/gocv"
 	"google.golang.org/grpc"
-
 	"github.com/3xcellent/intercom/proto"
 )
 
@@ -110,7 +109,6 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 			resp.Width = int32(img.Size()[1])
 			resp.Type = int32(img.Type())
 		}
-
 		if err := stream.Send(&resp); err != nil {
 			log.Printf("send error %v", err)
 		}
