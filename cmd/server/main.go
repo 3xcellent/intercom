@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	"gocv.io/x/gocv"
@@ -15,7 +16,9 @@ type intercomServer struct {
 	clients []string
 	currentBroadcastName string
 	currentBroadcastImg gocv.Mat
+	currentBroadcastImgSync sync.Mutex
 	lastBroadcastReceived time.Time
+	hasIncomingBroadcast bool
 }
 
 func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastServer) error {
@@ -51,15 +54,18 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 			resp.Status = 1
 		} else {
 			resp.BroadcastAccepted = true
+			s.hasIncomingBroadcast = true
 			s.lastBroadcastReceived = time.Now()
 			s.currentBroadcastName = broadcast.Name
 
 			// update broadcastImg and send it to stream
+			s.currentBroadcastImgSync.Lock()
 			s.currentBroadcastImg, err = gocv.NewMatFromBytes(int(broadcast.Height), int(broadcast.Width), gocv.MatType(broadcast.Type), broadcast.Bytes)
 			if err != nil {
 				log.Printf("cannot create NewMatFromBytes: %v\n", err)
 				continue
 			}
+			s.currentBroadcastImgSync.Unlock()
 		}
 
 		if err := stream.Send(&resp); err != nil {
@@ -69,7 +75,14 @@ func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastSe
 }
 
 func (s *intercomServer) isCurrentlyBroadcasting() bool {
-	return s.lastBroadcastReceived.Add(time.Second).After(time.Now())
+	if !s.hasIncomingBroadcast {
+		return false
+	}
+	if time.Now().After(s.lastBroadcastReceived.Add(500 * time.Millisecond)) {
+		s.hasIncomingBroadcast = false
+		return false
+	}
+	return true
 }
 
 func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastServer) error {
@@ -85,33 +98,40 @@ func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastSe
 		default:
 		}
 
-		// receive data from stream
-		_, err := stream.Recv()
-		if err == io.EOF {
-			// return will close stream from server side
-			log.Println("exiting stream...")
-			return nil
-		}
-		if err != nil {
-			log.Printf("receive error %v", err)
+		if !s.isCurrentlyBroadcasting() {
 			continue
 		}
 
-		resp := proto.ServerBroadcastResp{
-			IsCurrentlyBroadcasting: s.isCurrentlyBroadcasting(),
-		}
-		if resp.IsCurrentlyBroadcasting {
-			img := &s.currentBroadcastImg
+		s.currentBroadcastImgSync.Lock()
+		img := s.currentBroadcastImg.Clone()
+		s.currentBroadcastImgSync.Unlock()
 
-			resp.Name = s.currentBroadcastName
-			resp.Bytes = img.ToBytes()
-			resp.Height = int32(img.Size()[0])
-			resp.Width = int32(img.Size()[1])
-			resp.Type = int32(img.Type())
+		defer img.Close()
+
+		resp := proto.ServerBroadcastResp{
+			IsCurrentlyBroadcasting: true,
+			Name: s.currentBroadcastName,
+			Bytes: img.ToBytes(),
+			Height: int32(img.Size()[0]),
+			Width: int32(img.Size()[1]),
+			Type: int32(img.Type()),
 		}
+
 		if err := stream.Send(&resp); err != nil {
 			log.Printf("send error %v", err)
 		}
+
+		//receive data from stream; Ack for client to slow things down
+		//_, err := stream.Recv()
+		//if err == io.EOF {
+		//	// return will close stream from server side
+		//	log.Println("exiting stream...")
+		//	return nil
+		//}
+		//if err != nil {
+		//	log.Printf("receive error %v", err)
+		//	continue
+		//}
 	}
 }
 
