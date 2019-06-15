@@ -1,7 +1,10 @@
 # Intercom
 I hope this becomes useful.
 
-* Create a server->client video stream
+Goals/Things I want to Play With
+* GRPC Streaming
+* Threading
+* Audio/Video
 
 ## GRPC
 Using protobuf and protoc for code-generation of go files (i.e. `intercom.pb.go`)
