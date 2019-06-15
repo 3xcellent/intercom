@@ -22,248 +22,63 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-// The client request message containing the image.
-type ClientBroadcastReq struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Height               int32    `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	Width                int32    `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
-	Type                 int32    `protobuf:"varint,5,opt,name=type,proto3" json:"type,omitempty"`
-	Bytes                []byte   `protobuf:"bytes,6,opt,name=bytes,proto3" json:"bytes,omitempty"`
+type Broadcast struct {
+	Height               int32    `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
+	Width                int32    `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Type                 int32    `protobuf:"varint,3,opt,name=type,proto3" json:"type,omitempty"`
+	Bytes                []byte   `protobuf:"bytes,4,opt,name=bytes,proto3" json:"bytes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ClientBroadcastReq) Reset()         { *m = ClientBroadcastReq{} }
-func (m *ClientBroadcastReq) String() string { return proto.CompactTextString(m) }
-func (*ClientBroadcastReq) ProtoMessage()    {}
-func (*ClientBroadcastReq) Descriptor() ([]byte, []int) {
+func (m *Broadcast) Reset()         { *m = Broadcast{} }
+func (m *Broadcast) String() string { return proto.CompactTextString(m) }
+func (*Broadcast) ProtoMessage()    {}
+func (*Broadcast) Descriptor() ([]byte, []int) {
 	return fileDescriptor_4b7dc4dbe05ff714, []int{0}
 }
 
-func (m *ClientBroadcastReq) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ClientBroadcastReq.Unmarshal(m, b)
+func (m *Broadcast) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Broadcast.Unmarshal(m, b)
 }
-func (m *ClientBroadcastReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ClientBroadcastReq.Marshal(b, m, deterministic)
+func (m *Broadcast) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Broadcast.Marshal(b, m, deterministic)
 }
-func (m *ClientBroadcastReq) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ClientBroadcastReq.Merge(m, src)
+func (m *Broadcast) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Broadcast.Merge(m, src)
 }
-func (m *ClientBroadcastReq) XXX_Size() int {
-	return xxx_messageInfo_ClientBroadcastReq.Size(m)
+func (m *Broadcast) XXX_Size() int {
+	return xxx_messageInfo_Broadcast.Size(m)
 }
-func (m *ClientBroadcastReq) XXX_DiscardUnknown() {
-	xxx_messageInfo_ClientBroadcastReq.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ClientBroadcastReq proto.InternalMessageInfo
-
-func (m *ClientBroadcastReq) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
+func (m *Broadcast) XXX_DiscardUnknown() {
+	xxx_messageInfo_Broadcast.DiscardUnknown(m)
 }
 
-func (m *ClientBroadcastReq) GetHeight() int32 {
+var xxx_messageInfo_Broadcast proto.InternalMessageInfo
+
+func (m *Broadcast) GetHeight() int32 {
 	if m != nil {
 		return m.Height
 	}
 	return 0
 }
 
-func (m *ClientBroadcastReq) GetWidth() int32 {
+func (m *Broadcast) GetWidth() int32 {
 	if m != nil {
 		return m.Width
 	}
 	return 0
 }
 
-func (m *ClientBroadcastReq) GetType() int32 {
+func (m *Broadcast) GetType() int32 {
 	if m != nil {
 		return m.Type
 	}
 	return 0
 }
 
-func (m *ClientBroadcastReq) GetBytes() []byte {
-	if m != nil {
-		return m.Bytes
-	}
-	return nil
-}
-
-// The server response message.
-type ClientBroadcastResp struct {
-	Status               uint32   `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
-	BroadcastAccepted    bool     `protobuf:"varint,2,opt,name=broadcast_accepted,json=broadcastAccepted,proto3" json:"broadcast_accepted,omitempty"`
-	Reason               string   `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ClientBroadcastResp) Reset()         { *m = ClientBroadcastResp{} }
-func (m *ClientBroadcastResp) String() string { return proto.CompactTextString(m) }
-func (*ClientBroadcastResp) ProtoMessage()    {}
-func (*ClientBroadcastResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4b7dc4dbe05ff714, []int{1}
-}
-
-func (m *ClientBroadcastResp) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ClientBroadcastResp.Unmarshal(m, b)
-}
-func (m *ClientBroadcastResp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ClientBroadcastResp.Marshal(b, m, deterministic)
-}
-func (m *ClientBroadcastResp) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ClientBroadcastResp.Merge(m, src)
-}
-func (m *ClientBroadcastResp) XXX_Size() int {
-	return xxx_messageInfo_ClientBroadcastResp.Size(m)
-}
-func (m *ClientBroadcastResp) XXX_DiscardUnknown() {
-	xxx_messageInfo_ClientBroadcastResp.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ClientBroadcastResp proto.InternalMessageInfo
-
-func (m *ClientBroadcastResp) GetStatus() uint32 {
-	if m != nil {
-		return m.Status
-	}
-	return 0
-}
-
-func (m *ClientBroadcastResp) GetBroadcastAccepted() bool {
-	if m != nil {
-		return m.BroadcastAccepted
-	}
-	return false
-}
-
-func (m *ClientBroadcastResp) GetReason() string {
-	if m != nil {
-		return m.Reason
-	}
-	return ""
-}
-
-// The response message containing the reply
-type ServerBroadcastReq struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ServerBroadcastReq) Reset()         { *m = ServerBroadcastReq{} }
-func (m *ServerBroadcastReq) String() string { return proto.CompactTextString(m) }
-func (*ServerBroadcastReq) ProtoMessage()    {}
-func (*ServerBroadcastReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4b7dc4dbe05ff714, []int{2}
-}
-
-func (m *ServerBroadcastReq) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ServerBroadcastReq.Unmarshal(m, b)
-}
-func (m *ServerBroadcastReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ServerBroadcastReq.Marshal(b, m, deterministic)
-}
-func (m *ServerBroadcastReq) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServerBroadcastReq.Merge(m, src)
-}
-func (m *ServerBroadcastReq) XXX_Size() int {
-	return xxx_messageInfo_ServerBroadcastReq.Size(m)
-}
-func (m *ServerBroadcastReq) XXX_DiscardUnknown() {
-	xxx_messageInfo_ServerBroadcastReq.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ServerBroadcastReq proto.InternalMessageInfo
-
-func (m *ServerBroadcastReq) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-// The response message containing the reply
-type ServerBroadcastResp struct {
-	Name                    string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	IsCurrentlyBroadcasting bool     `protobuf:"varint,2,opt,name=is_currently_broadcasting,json=isCurrentlyBroadcasting,proto3" json:"is_currently_broadcasting,omitempty"`
-	Height                  int32    `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	Width                   int32    `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
-	Type                    int32    `protobuf:"varint,5,opt,name=type,proto3" json:"type,omitempty"`
-	Bytes                   []byte   `protobuf:"bytes,6,opt,name=bytes,proto3" json:"bytes,omitempty"`
-	XXX_NoUnkeyedLiteral    struct{} `json:"-"`
-	XXX_unrecognized        []byte   `json:"-"`
-	XXX_sizecache           int32    `json:"-"`
-}
-
-func (m *ServerBroadcastResp) Reset()         { *m = ServerBroadcastResp{} }
-func (m *ServerBroadcastResp) String() string { return proto.CompactTextString(m) }
-func (*ServerBroadcastResp) ProtoMessage()    {}
-func (*ServerBroadcastResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4b7dc4dbe05ff714, []int{3}
-}
-
-func (m *ServerBroadcastResp) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ServerBroadcastResp.Unmarshal(m, b)
-}
-func (m *ServerBroadcastResp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ServerBroadcastResp.Marshal(b, m, deterministic)
-}
-func (m *ServerBroadcastResp) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServerBroadcastResp.Merge(m, src)
-}
-func (m *ServerBroadcastResp) XXX_Size() int {
-	return xxx_messageInfo_ServerBroadcastResp.Size(m)
-}
-func (m *ServerBroadcastResp) XXX_DiscardUnknown() {
-	xxx_messageInfo_ServerBroadcastResp.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ServerBroadcastResp proto.InternalMessageInfo
-
-func (m *ServerBroadcastResp) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-func (m *ServerBroadcastResp) GetIsCurrentlyBroadcasting() bool {
-	if m != nil {
-		return m.IsCurrentlyBroadcasting
-	}
-	return false
-}
-
-func (m *ServerBroadcastResp) GetHeight() int32 {
-	if m != nil {
-		return m.Height
-	}
-	return 0
-}
-
-func (m *ServerBroadcastResp) GetWidth() int32 {
-	if m != nil {
-		return m.Width
-	}
-	return 0
-}
-
-func (m *ServerBroadcastResp) GetType() int32 {
-	if m != nil {
-		return m.Type
-	}
-	return 0
-}
-
-func (m *ServerBroadcastResp) GetBytes() []byte {
+func (m *Broadcast) GetBytes() []byte {
 	if m != nil {
 		return m.Bytes
 	}
@@ -271,36 +86,23 @@ func (m *ServerBroadcastResp) GetBytes() []byte {
 }
 
 func init() {
-	proto.RegisterType((*ClientBroadcastReq)(nil), "ClientBroadcastReq")
-	proto.RegisterType((*ClientBroadcastResp)(nil), "ClientBroadcastResp")
-	proto.RegisterType((*ServerBroadcastReq)(nil), "ServerBroadcastReq")
-	proto.RegisterType((*ServerBroadcastResp)(nil), "ServerBroadcastResp")
+	proto.RegisterType((*Broadcast)(nil), "Broadcast")
 }
 
 func init() { proto.RegisterFile("intercom.proto", fileDescriptor_4b7dc4dbe05ff714) }
 
 var fileDescriptor_4b7dc4dbe05ff714 = []byte{
-	// 315 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x52, 0x3f, 0x4f, 0xfb, 0x30,
-	0x10, 0xfd, 0xf9, 0x47, 0x53, 0xda, 0x13, 0x7f, 0x84, 0x53, 0x41, 0xe8, 0x14, 0x65, 0xf2, 0x42,
-	0x84, 0x60, 0x63, 0x23, 0x9d, 0x58, 0xcd, 0xc6, 0x52, 0xb9, 0xe9, 0xa9, 0xb5, 0xd4, 0x3a, 0xc1,
-	0xbe, 0x82, 0xba, 0xf1, 0x19, 0xf8, 0x3e, 0x7c, 0x37, 0x14, 0xd7, 0xad, 0x50, 0x53, 0x89, 0x89,
-	0x29, 0xf7, 0xee, 0x9d, 0x5e, 0x9e, 0xdf, 0x1d, 0x9c, 0x69, 0x43, 0x68, 0xcb, 0x6a, 0x99, 0xd7,
-	0xb6, 0xa2, 0x2a, 0xfb, 0x60, 0xc0, 0x47, 0x0b, 0x8d, 0x86, 0x0a, 0x5b, 0xa9, 0x69, 0xa9, 0x1c,
-	0x49, 0x7c, 0xe5, 0x1c, 0x3a, 0x46, 0x2d, 0x31, 0x61, 0x29, 0x13, 0x7d, 0xe9, 0x6b, 0x7e, 0x09,
-	0xdd, 0x39, 0xea, 0xd9, 0x9c, 0x92, 0xa3, 0x94, 0x89, 0x48, 0x06, 0xc4, 0x07, 0x10, 0xbd, 0xeb,
-	0x29, 0xcd, 0x93, 0x8e, 0x6f, 0x6f, 0x40, 0xa3, 0x40, 0xeb, 0x1a, 0x93, 0xc8, 0x37, 0x7d, 0xdd,
-	0x4c, 0x4e, 0xd6, 0x84, 0x2e, 0xe9, 0xa6, 0x4c, 0x9c, 0xc8, 0x0d, 0xc8, 0x08, 0xe2, 0x96, 0x03,
-	0x57, 0x37, 0xbf, 0x73, 0xa4, 0x68, 0xe5, 0xbc, 0x89, 0x53, 0x19, 0x10, 0xbf, 0x01, 0x3e, 0xd9,
-	0x0e, 0x8e, 0x55, 0x59, 0x62, 0x4d, 0x38, 0x4d, 0xfe, 0xa7, 0x4c, 0xf4, 0xe4, 0xc5, 0x8e, 0x79,
-	0x0c, 0x44, 0x23, 0x63, 0x51, 0xb9, 0xca, 0x78, 0xd7, 0x7d, 0x19, 0x50, 0x26, 0x80, 0x3f, 0xa3,
-	0x7d, 0x43, 0xfb, 0xdb, 0xbb, 0xb3, 0x2f, 0x06, 0x71, 0x6b, 0xd4, 0xd5, 0x07, 0x33, 0x7a, 0x80,
-	0x6b, 0xed, 0xc6, 0xe5, 0xca, 0x5a, 0x34, 0xb4, 0x58, 0x8f, 0x77, 0x7e, 0xb4, 0x99, 0x05, 0x8f,
-	0x57, 0xda, 0x8d, 0xb6, 0x7c, 0xf1, 0x83, 0xfe, 0xab, 0x7c, 0xef, 0x3e, 0x19, 0xf4, 0x9e, 0xc2,
-	0xd6, 0x79, 0x01, 0xe7, 0x7b, 0x61, 0xf3, 0x38, 0x6f, 0x1f, 0xc0, 0x70, 0x90, 0x1f, 0xd8, 0x49,
-	0xf6, 0x4f, 0xb0, 0x5b, 0xd6, 0x68, 0xec, 0xe5, 0xc1, 0xe3, 0xbc, 0x1d, 0xe6, 0x70, 0x90, 0x1f,
-	0x88, 0x6d, 0xa3, 0x51, 0x1c, 0xbf, 0x44, 0xfe, 0x00, 0x27, 0x5d, 0xff, 0xb9, 0xff, 0x0e, 0x00,
-	0x00, 0xff, 0xff, 0xaa, 0x0e, 0xe5, 0x89, 0x99, 0x02, 0x00, 0x00,
+	// 159 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcb, 0xcc, 0x2b, 0x49,
+	0x2d, 0x4a, 0xce, 0xcf, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x57, 0x4a, 0xe6, 0xe2, 0x74, 0x2a,
+	0xca, 0x4f, 0x4c, 0x49, 0x4e, 0x2c, 0x2e, 0x11, 0x12, 0xe3, 0x62, 0xcb, 0x48, 0xcd, 0x4c, 0xcf,
+	0x28, 0x91, 0x60, 0x54, 0x60, 0xd4, 0x60, 0x0d, 0x82, 0xf2, 0x84, 0x44, 0xb8, 0x58, 0xcb, 0x33,
+	0x53, 0x4a, 0x32, 0x24, 0x98, 0xc0, 0xc2, 0x10, 0x8e, 0x90, 0x10, 0x17, 0x4b, 0x49, 0x65, 0x41,
+	0xaa, 0x04, 0x33, 0x58, 0x10, 0xcc, 0x06, 0xa9, 0x4c, 0xaa, 0x2c, 0x49, 0x2d, 0x96, 0x60, 0x51,
+	0x60, 0xd4, 0xe0, 0x09, 0x82, 0x70, 0x8c, 0x8c, 0xb9, 0x38, 0x3c, 0xa1, 0xd6, 0x0a, 0xa9, 0x73,
+	0xb1, 0x3b, 0xe7, 0xe7, 0xe5, 0xa5, 0x26, 0x97, 0x08, 0x71, 0xe9, 0xc1, 0xad, 0x96, 0x42, 0x62,
+	0x2b, 0x31, 0x68, 0x30, 0x1a, 0x30, 0x3a, 0xb1, 0x47, 0xb1, 0x82, 0x9d, 0x98, 0xc4, 0x06, 0xa6,
+	0x8c, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x9b, 0xa5, 0xff, 0x82, 0xbb, 0x00, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -316,8 +118,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type IntercomClient interface {
 	// Connect will hold the connection to the server
-	ClientBroadcast(ctx context.Context, opts ...grpc.CallOption) (Intercom_ClientBroadcastClient, error)
-	ServerBroadcast(ctx context.Context, opts ...grpc.CallOption) (Intercom_ServerBroadcastClient, error)
+	Connect(ctx context.Context, opts ...grpc.CallOption) (Intercom_ConnectClient, error)
 }
 
 type intercomClient struct {
@@ -328,62 +129,31 @@ func NewIntercomClient(cc *grpc.ClientConn) IntercomClient {
 	return &intercomClient{cc}
 }
 
-func (c *intercomClient) ClientBroadcast(ctx context.Context, opts ...grpc.CallOption) (Intercom_ClientBroadcastClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Intercom_serviceDesc.Streams[0], "/Intercom/ClientBroadcast", opts...)
+func (c *intercomClient) Connect(ctx context.Context, opts ...grpc.CallOption) (Intercom_ConnectClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Intercom_serviceDesc.Streams[0], "/Intercom/Connect", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &intercomClientBroadcastClient{stream}
+	x := &intercomConnectClient{stream}
 	return x, nil
 }
 
-type Intercom_ClientBroadcastClient interface {
-	Send(*ClientBroadcastReq) error
-	Recv() (*ClientBroadcastResp, error)
+type Intercom_ConnectClient interface {
+	Send(*Broadcast) error
+	Recv() (*Broadcast, error)
 	grpc.ClientStream
 }
 
-type intercomClientBroadcastClient struct {
+type intercomConnectClient struct {
 	grpc.ClientStream
 }
 
-func (x *intercomClientBroadcastClient) Send(m *ClientBroadcastReq) error {
+func (x *intercomConnectClient) Send(m *Broadcast) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *intercomClientBroadcastClient) Recv() (*ClientBroadcastResp, error) {
-	m := new(ClientBroadcastResp)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *intercomClient) ServerBroadcast(ctx context.Context, opts ...grpc.CallOption) (Intercom_ServerBroadcastClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Intercom_serviceDesc.Streams[1], "/Intercom/ServerBroadcast", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &intercomServerBroadcastClient{stream}
-	return x, nil
-}
-
-type Intercom_ServerBroadcastClient interface {
-	Send(*ServerBroadcastReq) error
-	Recv() (*ServerBroadcastResp, error)
-	grpc.ClientStream
-}
-
-type intercomServerBroadcastClient struct {
-	grpc.ClientStream
-}
-
-func (x *intercomServerBroadcastClient) Send(m *ServerBroadcastReq) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *intercomServerBroadcastClient) Recv() (*ServerBroadcastResp, error) {
-	m := new(ServerBroadcastResp)
+func (x *intercomConnectClient) Recv() (*Broadcast, error) {
+	m := new(Broadcast)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -393,60 +163,33 @@ func (x *intercomServerBroadcastClient) Recv() (*ServerBroadcastResp, error) {
 // IntercomServer is the server API for Intercom service.
 type IntercomServer interface {
 	// Connect will hold the connection to the server
-	ClientBroadcast(Intercom_ClientBroadcastServer) error
-	ServerBroadcast(Intercom_ServerBroadcastServer) error
+	Connect(Intercom_ConnectServer) error
 }
 
 func RegisterIntercomServer(s *grpc.Server, srv IntercomServer) {
 	s.RegisterService(&_Intercom_serviceDesc, srv)
 }
 
-func _Intercom_ClientBroadcast_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(IntercomServer).ClientBroadcast(&intercomClientBroadcastServer{stream})
+func _Intercom_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(IntercomServer).Connect(&intercomConnectServer{stream})
 }
 
-type Intercom_ClientBroadcastServer interface {
-	Send(*ClientBroadcastResp) error
-	Recv() (*ClientBroadcastReq, error)
+type Intercom_ConnectServer interface {
+	Send(*Broadcast) error
+	Recv() (*Broadcast, error)
 	grpc.ServerStream
 }
 
-type intercomClientBroadcastServer struct {
+type intercomConnectServer struct {
 	grpc.ServerStream
 }
 
-func (x *intercomClientBroadcastServer) Send(m *ClientBroadcastResp) error {
+func (x *intercomConnectServer) Send(m *Broadcast) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *intercomClientBroadcastServer) Recv() (*ClientBroadcastReq, error) {
-	m := new(ClientBroadcastReq)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _Intercom_ServerBroadcast_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(IntercomServer).ServerBroadcast(&intercomServerBroadcastServer{stream})
-}
-
-type Intercom_ServerBroadcastServer interface {
-	Send(*ServerBroadcastResp) error
-	Recv() (*ServerBroadcastReq, error)
-	grpc.ServerStream
-}
-
-type intercomServerBroadcastServer struct {
-	grpc.ServerStream
-}
-
-func (x *intercomServerBroadcastServer) Send(m *ServerBroadcastResp) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *intercomServerBroadcastServer) Recv() (*ServerBroadcastReq, error) {
-	m := new(ServerBroadcastReq)
+func (x *intercomConnectServer) Recv() (*Broadcast, error) {
+	m := new(Broadcast)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -459,14 +202,8 @@ var _Intercom_serviceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "ClientBroadcast",
-			Handler:       _Intercom_ClientBroadcast_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "ServerBroadcast",
-			Handler:       _Intercom_ServerBroadcast_Handler,
+			StreamName:    "Connect",
+			Handler:       _Intercom_Connect_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

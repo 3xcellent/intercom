@@ -5,48 +5,46 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"log"
 	"math"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/3xcellent/intercom/proto"
-	"google.golang.org/grpc"
 	"gocv.io/x/gocv"
+	"google.golang.org/grpc"
 )
 
 const (
-	screenWidth  = 1280/2
-	screenHeight = 720/2
+	screenWidth  = 1280 / 2
+	screenHeight = 720 / 2
 
-	outPreviewWidth = screenWidth/4
-	outPreviewHeight = screenHeight/4
-	outPreviewX = screenHeight - outPreviewHeight - (outPreviewHeight/4)
-	outPreviewY = screenWidth - outPreviewWidth - (outPreviewWidth/4)
+	outPreviewWidth  = screenWidth / 4
+	outPreviewHeight = screenHeight / 4
+	outPreviewX      = screenHeight - outPreviewHeight - (outPreviewHeight / 4)
+	outPreviewY      = screenWidth - outPreviewWidth - (outPreviewWidth / 4)
 
-	inBroadcastWidth = screenWidth/2
-	inBroadcastHeight = screenHeight/2
-	inBroadcastX = screenHeight/2 - inBroadcastHeight/2 - inBroadcastHeight/4
-	inBroadcastY = screenWidth/2 - inBroadcastWidth/2 - inBroadcastWidth/4
+	inBroadcastWidth  = screenWidth / 2
+	inBroadcastHeight = screenHeight / 2
+	inBroadcastX      = screenHeight/2 - inBroadcastHeight/2 - inBroadcastHeight/4
+	inBroadcastY      = screenWidth/2 - inBroadcastWidth/2 - inBroadcastWidth/4
 
 	matType = gocv.MatTypeCV8UC3
 )
 
 type intercomClient struct {
-	window *gocv.Window
-	webcam *gocv.VideoCapture
+	window   *gocv.Window
+	webcam   *gocv.VideoCapture
 	deviceID string
 
-	serverBroadcastStream proto.Intercom_ServerBroadcastClient
-	clientBroadcastStream proto.Intercom_ClientBroadcastClient
+	streamClient proto.Intercom_ConnectClient
 
-	bgImg gocv.Mat
-	displayImg gocv.Mat
+	bgImg           gocv.Mat
+	displayImg      gocv.Mat
 	videoPreviewImg gocv.Mat
-	inBroadcastImg gocv.Mat
+	inBroadcastImg  gocv.Mat
 
-	inBroadcastImgSync sync.Mutex
+	inBroadcastImgSync  sync.Mutex
 	videoPreviewImgSync sync.Mutex
 
 	lastInBroadcastTime time.Time
@@ -90,19 +88,14 @@ func (c *intercomClient) connectToServer() {
 	// dail server
 	conn, err := grpc.Dial(":6000", grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("can not connect with server %v", err)
+		panic(err)
 	}
 
 	// create streams
 	client := proto.NewIntercomClient(conn)
-	c.serverBroadcastStream, err = client.ServerBroadcast(context.Background())
+	c.streamClient, err = client.Connect(context.Background())
 	if err != nil {
-		log.Fatalf("openn stream error %v", err)
-	}
-
-	c.clientBroadcastStream, err = client.ClientBroadcast(context.Background())
-	if err != nil {
-		log.Fatalf("openn stream error %v", err)
+		panic(err)
 	}
 }
 
@@ -111,7 +104,7 @@ func (c *intercomClient) ResetDisplayImg() {
 }
 
 func (c *intercomClient) handleKeyEvents() {
-	switch  c.window.WaitKey(1) {
+	switch c.window.WaitKey(1) {
 	case 27:
 		c.wantToQuit = true
 	case 32:
@@ -122,20 +115,20 @@ func (c *intercomClient) handleKeyEvents() {
 
 func (c *intercomClient) handleReceiveBroadcast() {
 	for {
-		resp, err := c.serverBroadcastStream.Recv()
+		resp, err := c.streamClient.Recv()
 		if err == io.EOF {
 			c.ResetDisplayImg()
 			continue
 		}
 		if err != nil {
-			log.Fatalf("can not receive %v", err)
+			panic(err)
 		}
 
 		c.lastInBroadcastTime = time.Now()
 
 		serverImg, err := gocv.NewMatFromBytes(int(resp.Height), int(resp.Width), gocv.MatType(resp.Type), resp.Bytes)
 		if err != nil {
-			log.Fatalf("can not create NewMatFromBytes %v\n", err)
+			fmt.Printf("cannot create NewMatFromBytes %v\n", err)
 			c.ResetDisplayImg()
 			continue
 		}
@@ -153,18 +146,12 @@ func (c *intercomClient) handleReceiveBroadcast() {
 			fmt.Println("receiving incoming broadcast")
 		}
 
-		screenCapRatio := float64(float64(serverImg.Size()[1])/float64(serverImg.Size()[0]))
-		scaledHeight := int(math.Floor(inBroadcastWidth/screenCapRatio))
+		screenCapRatio := float64(float64(serverImg.Size()[1]) / float64(serverImg.Size()[0]))
+		scaledHeight := int(math.Floor(inBroadcastWidth / screenCapRatio))
 
 		c.inBroadcastImgSync.Lock()
 		gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
 		c.inBroadcastImgSync.Unlock()
-
-		// This is more of an Ack right now
-		//req := proto.ServerBroadcastReq{Name: "dude"}
-		//if err := c.serverBroadcastStream.Send(&req); err != nil {
-		//	log.Fatalf("can not send %v", err)
-		//}
 	}
 }
 
@@ -207,36 +194,20 @@ func (c *intercomClient) sendVideoCapture() {
 		return
 	}
 
-	c.videoPreviewImgSync.Lock()
-	req := proto.ClientBroadcastReq{
-		Name:                 "dude",
-		Height:               int32(videoCaptureImg.Size()[0]),
-		Width:                int32(videoCaptureImg.Size()[1]),
-		Type:                 int32(videoCaptureImg.Type()),
-		Bytes:                videoCaptureImg.ToBytes(),
+	req := proto.Broadcast{
+		Height: int32(videoCaptureImg.Size()[0]),
+		Width:  int32(videoCaptureImg.Size()[1]),
+		Type:   int32(videoCaptureImg.Type()),
+		Bytes:  videoCaptureImg.ToBytes(),
 	}
-	c.videoPreviewImgSync.Unlock()
 
-	if err := c.clientBroadcastStream.Send(&req); err != nil {
-		log.Fatalf("can not send %v", err)
+	if err := c.streamClient.Send(&req); err != nil {
+		panic(err)
 		return
 	}
 
-	resp, err := c.clientBroadcastStream.Recv()
-	if err == io.EOF {
-		fmt.Println(io.EOF.Error())
-		return
-	}
-	if err != nil {
-		log.Fatalf("can not receive %v", err)
-	}
-	if resp.BroadcastAccepted != true {
-		fmt.Println("Cannot send broadcast: " + resp.Reason)
-		return
-	}
-
-	screenCapRatio := float64(float64(videoCaptureImg.Size()[1])/float64(videoCaptureImg.Size()[0]))
-	outPreviewScaledHeight := int(math.Floor(outPreviewWidth/screenCapRatio))
+	screenCapRatio := float64(float64(videoCaptureImg.Size()[1]) / float64(videoCaptureImg.Size()[0]))
+	outPreviewScaledHeight := int(math.Floor(outPreviewWidth / screenCapRatio))
 
 	c.videoPreviewImgSync.Lock()
 	gocv.Resize(videoCaptureImg, &c.videoPreviewImg, image.Point{X: outPreviewWidth, Y: outPreviewScaledHeight}, 0, 0, gocv.InterpolationDefault)
@@ -267,7 +238,7 @@ func (c *intercomClient) draw() {
 	c.window.IMShow(c.displayImg)
 }
 
-func (c* intercomClient) hasIncomingBroadcast() bool {
+func (c *intercomClient) hasIncomingBroadcast() bool {
 	if !c.isReceivingBroadcast {
 		return false
 	}
@@ -300,10 +271,10 @@ func (c *intercomClient) Run() {
 
 func createIntercomClient(vidoeCaptureDeviceId, filename string) intercomClient {
 	client := intercomClient{
-		window: gocv.NewWindow("Capture Window"),
-		deviceID: vidoeCaptureDeviceId,
+		window:          gocv.NewWindow("Capture Window"),
+		deviceID:        vidoeCaptureDeviceId,
 		videoPreviewImg: gocv.NewMatWithSize(outPreviewHeight, outPreviewWidth, gocv.MatTypeCV8UC3),
-		inBroadcastImg: gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3),
+		inBroadcastImg:  gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3),
 	}
 
 	client.loadBackgroundImg(filename)

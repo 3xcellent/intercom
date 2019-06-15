@@ -1,77 +1,23 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"sync"
 	"time"
 
-	"gocv.io/x/gocv"
-	"google.golang.org/grpc"
 	"github.com/3xcellent/intercom/proto"
+	"google.golang.org/grpc"
 )
 
 type intercomServer struct {
-	clients []string
-	currentBroadcastName string
-	currentBroadcastImg gocv.Mat
+	currentBroadcastBytes   []byte
 	currentBroadcastImgSync sync.Mutex
-	lastBroadcastReceived time.Time
-	hasIncomingBroadcast bool
-}
-
-func (s *intercomServer) ClientBroadcast(stream proto.Intercom_ClientBroadcastServer) error {
-	log.Println("start new ClientBroadcast")
-	ctx := stream.Context()
-
-	for {
-		// exit if context is done
-		// or continue
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		// receive data from stream
-		broadcast, err := stream.Recv()
-		if err == io.EOF {
-			// return will close stream from server side
-			log.Printf("ClientBroadcast end: %s\n", s.currentBroadcastName)
-			return nil
-		}
-		if err != nil {
-			log.Printf("receive error %v\n", err)
-			continue
-		}
-
-		resp := proto.ClientBroadcastResp{}
-
-		if 	s.isCurrentlyBroadcasting() && s.currentBroadcastName != broadcast.Name {
-			resp.BroadcastAccepted = false
-			resp.Reason = "BACKOFF"
-			resp.Status = 1
-		} else {
-			resp.BroadcastAccepted = true
-			s.hasIncomingBroadcast = true
-			s.lastBroadcastReceived = time.Now()
-			s.currentBroadcastName = broadcast.Name
-
-			// update broadcastImg and send it to stream
-			s.currentBroadcastImgSync.Lock()
-			s.currentBroadcastImg, err = gocv.NewMatFromBytes(int(broadcast.Height), int(broadcast.Width), gocv.MatType(broadcast.Type), broadcast.Bytes)
-			if err != nil {
-				log.Printf("cannot create NewMatFromBytes: %v\n", err)
-				continue
-			}
-			s.currentBroadcastImgSync.Unlock()
-		}
-
-		if err := stream.Send(&resp); err != nil {
-			log.Printf("ClientBroadcastResp send error %v\n", err)
-		}
-	}
+	lastBroadcastReceived   time.Time
+	hasIncomingBroadcast    bool
+	lastBroadcast           proto.Broadcast
 }
 
 func (s *intercomServer) isCurrentlyBroadcasting() bool {
@@ -85,53 +31,66 @@ func (s *intercomServer) isCurrentlyBroadcasting() bool {
 	return true
 }
 
-func (s *intercomServer) ServerBroadcast(stream proto.Intercom_ServerBroadcastServer) error {
-	log.Println("new connection")
+func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
+	log.Println("new stream connection established")
 	ctx := stream.Context()
 
+	go func() {
+		for {
+			// exit if context is done
+			// or continue
+			select {
+			case <-ctx.Done():
+				fmt.Println("outgoing stream closed: " + ctx.Err().Error())
+				return
+			default:
+			}
+
+			if !s.isCurrentlyBroadcasting() {
+				continue
+			}
+
+			if err := stream.Send(&s.lastBroadcast); err != nil {
+				fmt.Printf("send error %v", err)
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			// exit if context is done
+			// or continue
+			select {
+			case <-ctx.Done():
+				fmt.Println("incoming stream closed: " + ctx.Err().Error())
+				return
+			default:
+			}
+
+			broadcast, err := stream.Recv()
+			if err == io.EOF {
+				// return will close stream from server side
+				fmt.Printf("connection closed: %v\n", err)
+				break
+			}
+			if err != nil {
+				fmt.Printf("receive error %v\n", err)
+				break
+			}
+
+			s.hasIncomingBroadcast = true
+			s.lastBroadcastReceived = time.Now()
+			s.lastBroadcast = *broadcast
+		}
+	}()
+
 	for {
-		// exit if context is done
-		// or continue
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			fmt.Println("stream closed: " + ctx.Err().Error())
+			return nil
 		default:
 		}
-
-		if !s.isCurrentlyBroadcasting() {
-			continue
-		}
-
-		s.currentBroadcastImgSync.Lock()
-		img := s.currentBroadcastImg.Clone()
-		s.currentBroadcastImgSync.Unlock()
-
-		defer img.Close()
-
-		resp := proto.ServerBroadcastResp{
-			IsCurrentlyBroadcasting: true,
-			Name: s.currentBroadcastName,
-			Bytes: img.ToBytes(),
-			Height: int32(img.Size()[0]),
-			Width: int32(img.Size()[1]),
-			Type: int32(img.Type()),
-		}
-
-		if err := stream.Send(&resp); err != nil {
-			log.Printf("send error %v", err)
-		}
-
-		//receive data from stream; Ack for client to slow things down
-		//_, err := stream.Recv()
-		//if err == io.EOF {
-		//	// return will close stream from server side
-		//	log.Println("exiting stream...")
-		//	return nil
-		//}
-		//if err != nil {
-		//	log.Printf("receive error %v", err)
-		//	continue
-		//}
 	}
 }
 
@@ -139,15 +98,15 @@ func main() {
 	// create listener
 	l, err := net.Listen("tcp", ":6000")
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		panic(err)
 	}
 
 	grpcServer := grpc.NewServer()
 	proto.RegisterIntercomServer(grpcServer, &intercomServer{})
 
-	log.Println("Listening on tcp://localhost:6000")
+	fmt.Println("Listening on tcp://localhost:6000")
 
 	if err := grpcServer.Serve(l); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		panic(err)
 	}
 }
