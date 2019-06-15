@@ -6,6 +6,8 @@ Goals/Things I want to Play With
 * Threading
 * Audio/Video
 
+This is a demonstration of a bi-directional GRPC stream, while also being somewhat interesting in that it is streaming images via a connected webcam.  I have so far only tested on a Macbook Pro.  The following installation instructions are for OSX as well, however there is no reason this wouldn't work on other OS with the proper OpenCV installation and gocv build.
+
 ## GRPC
 Using protobuf and protoc for code-generation of go files (i.e. `intercom.pb.go`)
 
