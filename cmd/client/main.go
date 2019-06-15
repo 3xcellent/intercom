@@ -7,7 +7,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/3xcellent/intercom/proto"
@@ -43,9 +42,6 @@ type intercomClient struct {
 	displayImg      gocv.Mat
 	videoPreviewImg gocv.Mat
 	inBroadcastImg  gocv.Mat
-
-	inBroadcastImgSync  sync.Mutex
-	videoPreviewImgSync sync.Mutex
 
 	lastInBroadcastTime time.Time
 
@@ -149,9 +145,7 @@ func (c *intercomClient) handleReceiveBroadcast() {
 		screenCapRatio := float64(float64(serverImg.Size()[1]) / float64(serverImg.Size()[0]))
 		scaledHeight := int(math.Floor(inBroadcastWidth / screenCapRatio))
 
-		c.inBroadcastImgSync.Lock()
 		gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
-		c.inBroadcastImgSync.Unlock()
 	}
 }
 
@@ -209,30 +203,24 @@ func (c *intercomClient) sendVideoCapture() {
 	screenCapRatio := float64(float64(videoCaptureImg.Size()[1]) / float64(videoCaptureImg.Size()[0]))
 	outPreviewScaledHeight := int(math.Floor(outPreviewWidth / screenCapRatio))
 
-	c.videoPreviewImgSync.Lock()
 	gocv.Resize(videoCaptureImg, &c.videoPreviewImg, image.Point{X: outPreviewWidth, Y: outPreviewScaledHeight}, 0, 0, gocv.InterpolationDefault)
-	c.videoPreviewImgSync.Unlock()
 }
 
 func (c *intercomClient) draw() {
 	if c.hasIncomingBroadcast() {
-		c.inBroadcastImgSync.Lock()
 		for x := 0; x < c.inBroadcastImg.Size()[0]; x++ {
 			for y := 0; y < inBroadcastWidth; y++ {
 				c.displayImg.SetIntAt3(x+inBroadcastX, y+inBroadcastY, 0, c.inBroadcastImg.GetIntAt3(x, y, 0))
 			}
 		}
-		c.inBroadcastImgSync.Unlock()
 	}
 
 	if c.isSendingBroadcast {
-		c.videoPreviewImgSync.Lock()
 		for x := 0; x < c.videoPreviewImg.Size()[0]; x++ {
 			for y := 0; y < outPreviewWidth; y++ {
 				c.displayImg.SetIntAt3(x+outPreviewX, y+outPreviewY, 0, c.videoPreviewImg.GetIntAt3(x, outPreviewWidth-y, 0))
 			}
 		}
-		c.videoPreviewImgSync.Unlock()
 	}
 
 	c.window.IMShow(c.displayImg)
