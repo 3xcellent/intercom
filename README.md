@@ -69,3 +69,13 @@ protoc \
     Press [Spacebar] to broadcast
     
     Press [Esc] to exit
+    
+___
+### Threads
+I would like to have separate threads for more of the separate operations. GoCV 
+(or maybe more of an OpenCV issue?) seems to only be able to access the window 
+and VideoDevice (amongst other things) on the main thread on OSX.  This makes 
+threading very difficult.  GRPC connections are fine as long as they stay on the 
+same thread they were created on.
+
+One possible solution: https://github.com/golang/go/wiki/LockOSThread
