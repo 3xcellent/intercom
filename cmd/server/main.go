@@ -24,7 +24,7 @@ func (s *intercomServer) isCurrentlyBroadcasting() bool {
 	if !s.hasIncomingBroadcast {
 		return false
 	}
-	if time.Now().After(s.lastBroadcastReceived.Add(500 * time.Millisecond)) {
+	if time.Now().After(s.lastBroadcastReceived.Add(300 * time.Millisecond)) {
 		s.hasIncomingBroadcast = false
 		return false
 	}
@@ -53,6 +53,8 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 			if err := stream.Send(&s.lastBroadcast); err != nil {
 				fmt.Printf("send error %v", err)
 			}
+
+			time.Sleep(time.Second/30)
 		}
 	}()
 
