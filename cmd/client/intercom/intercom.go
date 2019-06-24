@@ -3,14 +3,14 @@ package intercom
 import (
 	"context"
 	"fmt"
-	"github.com/3xcellent/intercom/proto"
-	"gocv.io/x/gocv"
-	"google.golang.org/grpc"
 	"image"
 	"io"
 	"math"
-	"runtime"
 	"time"
+
+	"github.com/3xcellent/intercom/proto"
+	"gocv.io/x/gocv"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -244,8 +244,6 @@ func (c *intercomClient) hasIncomingBroadcast() bool {
 func (c *intercomClient) Run() {
 	c.connectToServer()
 	go c.handleReceiveBroadcast()
-
-	runtime.LockOSThread()
 
 	// main program loop
 	for {

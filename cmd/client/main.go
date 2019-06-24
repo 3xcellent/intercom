@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/3xcellent/intercom/cmd/client/intercom"
 )
 
 func main() {
-	runtime.LockOSThread()
-
 	if len(os.Args) < 2 {
 		fmt.Println("How to run:\n\tintercom [camera ID] [path/to/background.img]")
 		return
