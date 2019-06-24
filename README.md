@@ -71,6 +71,10 @@ protoc \
     Press [Esc] to exit
     
 ___
+### Issues
+Currently cannot include the portaudio and gocv libraries at the same time.  
+	* have an issue on the portaudio github page https://github.com/gordonklaus/portaudio/issues/30
+	
 ### Threads
 I would like to have separate threads for more of the separate operations. GoCV 
 (or maybe more of an OpenCV issue?) seems to only be able to access the window 
@@ -79,3 +83,5 @@ threading very difficult.  GRPC connections are fine as long as they stay on the
 same thread they were created on.
 
 One possible solution: https://github.com/golang/go/wiki/LockOSThread
+
+
