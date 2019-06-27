@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/3xcellent/intercom/proto"
+
+	"github.com/gordonklaus/portaudio"
 	"gocv.io/x/gocv"
 	"google.golang.org/grpc"
 )
@@ -27,13 +29,16 @@ const (
 	inBroadcastX      = screenHeight/2 - inBroadcastHeight/2 - inBroadcastHeight/4
 	inBroadcastY      = screenWidth/2 - inBroadcastWidth/2 - inBroadcastWidth/4
 
+	audioSampleRate = 44100
+
 	matType = gocv.MatTypeCV8UC3
 )
 
 type intercomClient struct {
-	window   *gocv.Window
-	webcam   *gocv.VideoCapture
-	deviceID string
+	window           *gocv.Window
+	webcam           *gocv.VideoCapture
+	audioInputStream *portaudio.Stream
+	deviceID         string
 
 	context context.Context
 
@@ -48,6 +53,8 @@ type intercomClient struct {
 
 	isReceivingBroadcast bool
 	isSendingBroadcast   bool
+	isSendingAudio       bool
+	isReceivingAudio     bool
 	wantToBroadcast      bool
 	wantToQuit           bool
 }
@@ -152,6 +159,16 @@ func (c *intercomClient) handleReceiveBroadcast() {
 	}
 }
 
+func (c *intercomClient) handleSendAudio() {
+	if c.wantToBroadcast {
+		c.sendAudioSample()
+	} else {
+		if c.isSendingAudio {
+			c.isSendingAudio = false
+		}
+	}
+}
+
 func (c *intercomClient) handleSendBroadcast() {
 	if c.wantToBroadcast {
 		c.sendVideoCapture()
@@ -162,6 +179,10 @@ func (c *intercomClient) handleSendBroadcast() {
 			c.webcam.Close()
 		}
 	}
+}
+
+func (c *intercomClient) sendAudioSample() {
+
 }
 
 func (c *intercomClient) sendVideoCapture() {
@@ -192,11 +213,14 @@ func (c *intercomClient) sendVideoCapture() {
 	}
 
 	req := proto.Broadcast{
-		Height: int32(videoCaptureImg.Size()[0]),
-		Width:  int32(videoCaptureImg.Size()[1]),
-		Type:   int32(videoCaptureImg.Type()),
-		Bytes:  videoCaptureImg.ToBytes(),
+		Type
 	}
+	// req := proto.Broadcast{
+	// 	Height: int32(videoCaptureImg.Size()[0]),
+	// 	Width:  int32(videoCaptureImg.Size()[1]),
+	// 	Type:   int32(videoCaptureImg.Type()),
+	// 	Bytes:  videoCaptureImg.ToBytes(),
+	// }
 
 	if err := c.streamClient.Send(&req); err != nil {
 		panic(err)
@@ -243,6 +267,18 @@ func (c *intercomClient) hasIncomingBroadcast() bool {
 
 func (c *intercomClient) Run() {
 	c.connectToServer()
+
+	portaudio.Initialize()
+	defer portaudio.Terminate()
+
+	in := make([]int32, 64)
+	var err error
+	c.audioInputStream, err = portaudio.OpenDefaultStream(1, 0, audioSampleRate, len(in), in)
+	if err != nil {
+		panic(err)
+	}
+	defer c.audioInputStream.Close()
+
 	go c.handleReceiveBroadcast()
 
 	// main program loop
@@ -262,6 +298,7 @@ func (c *intercomClient) Run() {
 		}
 
 		c.handleSendBroadcast()
+		c.handleSendAudio()
 		c.draw()
 	}
 }
@@ -272,7 +309,7 @@ func CreateIntercomClient(ctx context.Context, vidoeCaptureDeviceId, filename st
 		deviceID:        vidoeCaptureDeviceId,
 		videoPreviewImg: gocv.NewMatWithSize(outPreviewHeight, outPreviewWidth, gocv.MatTypeCV8UC3),
 		inBroadcastImg:  gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3),
-		context: ctx,
+		context:         ctx,
 	}
 
 	client.loadBackgroundImg(filename)

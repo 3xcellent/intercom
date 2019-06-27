@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/3xcellent/intercom/proto"
@@ -13,11 +12,10 @@ import (
 )
 
 type intercomServer struct {
-	currentBroadcastBytes   []byte
-	currentBroadcastImgSync sync.Mutex
-	lastBroadcastReceived   time.Time
-	hasIncomingBroadcast    bool
-	lastBroadcast           proto.Broadcast
+	lastBroadcastReceived time.Time
+	hasIncomingBroadcast  bool
+	currentBroadcastImage proto.Image
+	currentBroadcastAudio proto.Audio
 }
 
 func (s *intercomServer) isCurrentlyBroadcasting() bool {
@@ -50,11 +48,17 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 				continue
 			}
 
-			if err := stream.Send(&s.lastBroadcast); err != nil {
+			broadcast := proto.Broadcast{
+				BroadcastType: &proto.Broadcast_Image{
+					Image: &s.currentBroadcastImage,
+				},
+			}
+
+			if err := stream.Send(&broadcast); err != nil {
 				fmt.Printf("send error %v", err)
 			}
 
-			time.Sleep(time.Second/30)
+			time.Sleep(time.Second / 30)
 		}
 	}()
 
@@ -82,7 +86,25 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 
 			s.hasIncomingBroadcast = true
 			s.lastBroadcastReceived = time.Now()
-			s.lastBroadcast = *broadcast
+			image := broadcast.GetImage()
+			if image != nil {
+				s.currentBroadcastImage = *image
+				continue
+			}
+
+			audio := broadcast.GetAudio()
+			if audio != nil {
+				broadcast := proto.Broadcast{
+					BroadcastType: &proto.Broadcast_Audio{
+						Audio: audio,
+					},
+				}
+
+				if err := stream.Send(&broadcast); err != nil {
+					fmt.Printf("send error %v", err)
+				}
+				continue
+			}
 		}
 	}()
 
