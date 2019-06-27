@@ -12,17 +12,18 @@ import (
 )
 
 type intercomServer struct {
-	lastBroadcastReceived time.Time
-	hasIncomingBroadcast  bool
-	currentBroadcastImage proto.Image
-	currentBroadcastAudio proto.Audio
+	lastBroadcastImageReceived time.Time
+	lastBroadcastAudioReceived time.Time
+	hasIncomingBroadcast       bool
+	currentBroadcastImage      proto.Image
+	currentBroadcastAudio      proto.Audio
 }
 
 func (s *intercomServer) isCurrentlyBroadcasting() bool {
 	if !s.hasIncomingBroadcast {
 		return false
 	}
-	if time.Now().After(s.lastBroadcastReceived.Add(300 * time.Millisecond)) {
+	if time.Now().After(s.lastBroadcastAudioReceived.Add(300 * time.Millisecond)) {
 		s.hasIncomingBroadcast = false
 		return false
 	}
@@ -32,6 +33,9 @@ func (s *intercomServer) isCurrentlyBroadcasting() bool {
 func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 	log.Println("new stream connection established")
 	ctx := stream.Context()
+
+	var streamLastImageSent time.Time
+	var streamLastAudioSent time.Time
 
 	go func() {
 		for {
@@ -48,17 +52,25 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 				continue
 			}
 
-			broadcast := proto.Broadcast{
-				BroadcastType: &proto.Broadcast_Image{
+			broadcast := proto.Broadcast{}
+
+			if streamLastImageSent != s.lastBroadcastImageReceived {
+				broadcast.BroadcastType = &proto.Broadcast_Image{
 					Image: &s.currentBroadcastImage,
-				},
+				}
+				if err := stream.Send(&broadcast); err != nil {
+					fmt.Printf("send error %v", err)
+				}
 			}
 
-			if err := stream.Send(&broadcast); err != nil {
-				fmt.Printf("send error %v", err)
+			if streamLastAudioSent != s.lastBroadcastAudioReceived {
+				broadcast.BroadcastType = &proto.Broadcast_Audio{
+					Audio: &s.currentBroadcastAudio,
+				}
+				if err := stream.Send(&broadcast); err != nil {
+					fmt.Printf("send error %v", err)
+				}
 			}
-
-			time.Sleep(time.Second / 30)
 		}
 	}()
 
@@ -85,7 +97,7 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 			}
 
 			s.hasIncomingBroadcast = true
-			s.lastBroadcastReceived = time.Now()
+			s.lastBroadcastImageReceived = time.Now()
 			image := broadcast.GetImage()
 			if image != nil {
 				s.currentBroadcastImage = *image
@@ -94,15 +106,7 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 
 			audio := broadcast.GetAudio()
 			if audio != nil {
-				broadcast := proto.Broadcast{
-					BroadcastType: &proto.Broadcast_Audio{
-						Audio: audio,
-					},
-				}
-
-				if err := stream.Send(&broadcast); err != nil {
-					fmt.Printf("send error %v", err)
-				}
+				s.currentBroadcastAudio = *audio
 				continue
 			}
 		}
