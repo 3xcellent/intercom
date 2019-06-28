@@ -13,7 +13,7 @@ import (
 )
 
 type intercomServer struct {
-	imgMutex 				   sync.Mutex
+	imgMutex                   sync.Mutex
 	lastBroadcastImageReceived time.Time
 	lastBroadcastAudioReceived time.Time
 	hasIncomingBroadcast       bool
@@ -56,16 +56,18 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 
 			broadcast := proto.Broadcast{}
 
-			s.imgMutex.Lock()
-			if streamLastImageSent != s.lastBroadcastImageReceived {
+			if time.Now().After(streamLastImageSent.Add(1 / 30 * time.Millisecond)) {
+
 				broadcast.BroadcastType = &proto.Broadcast_Image{
 					Image: &s.currentBroadcastImage,
 				}
+
+				s.imgMutex.Lock()
 				if err := stream.Send(&broadcast); err != nil {
 					fmt.Printf("send error %v", err)
 				}
+				s.imgMutex.Unlock()
 			}
-			s.imgMutex.Unlock()
 		}
 	}()
 
@@ -90,7 +92,6 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 				fmt.Printf("receive error %v\n", err)
 				break
 			}
-
 
 			image := broadcast.GetImage()
 			if image != nil {
