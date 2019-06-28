@@ -52,7 +52,7 @@ type intercomClient struct {
 	lastInBroadcastTime time.Time
 
 	isReceivingBroadcast bool
-	isSendingBroadcast   bool
+	hasWebcamOn          bool
 	isSendingAudio       bool
 	isReceivingAudio     bool
 	wantToBroadcast      bool
@@ -75,8 +75,8 @@ func (c *intercomClient) loadBackgroundImg(path string) {
 }
 
 func (c *intercomClient) shutdown() {
-	if c.isSendingBroadcast {
-		c.isSendingBroadcast = false
+	if c.hasWebcamOn {
+		c.hasWebcamOn = false
 		c.webcam.Close()
 	}
 
@@ -128,34 +128,39 @@ func (c *intercomClient) handleReceiveBroadcast() {
 		}
 		if err != nil {
 			panic(err)
+			c.isReceivingBroadcast = false
+			continue
 		}
 
 		c.lastInBroadcastTime = time.Now()
 
-		serverImg, err := gocv.NewMatFromBytes(int(resp.Height), int(resp.Width), gocv.MatType(resp.Type), resp.Bytes)
-		if err != nil {
-			fmt.Printf("cannot create NewMatFromBytes %v\n", err)
-			c.ResetDisplayImg()
-			continue
+		respImage := resp.GetImage()
+		if respImage != nil {
+			serverImg, err := gocv.NewMatFromBytes(int(respImage.Height), int(respImage.Width), gocv.MatType(respImage.Type), respImage.Bytes)
+			if err != nil {
+				fmt.Printf("cannot create NewMatFromBytes %v\n", err)
+				c.ResetDisplayImg()
+				continue
+			}
+			defer serverImg.Close()
+
+			if serverImg.Empty() {
+				c.isReceivingBroadcast = false
+				c.ResetDisplayImg()
+				fmt.Println("incoming broadcast ended")
+				continue
+			}
+
+			if !c.isReceivingBroadcast {
+				c.isReceivingBroadcast = true
+				fmt.Println("receiving incoming broadcast")
+			}
+
+			screenCapRatio := float64(float64(serverImg.Size()[1]) / float64(serverImg.Size()[0]))
+			scaledHeight := int(math.Floor(inBroadcastWidth / screenCapRatio))
+
+			gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
 		}
-		defer serverImg.Close()
-
-		if serverImg.Empty() {
-			c.isReceivingBroadcast = false
-			c.ResetDisplayImg()
-			fmt.Println("incoming broadcast ended")
-			continue
-		}
-
-		if !c.isReceivingBroadcast {
-			c.isReceivingBroadcast = true
-			fmt.Println("receiving incoming broadcast")
-		}
-
-		screenCapRatio := float64(float64(serverImg.Size()[1]) / float64(serverImg.Size()[0]))
-		scaledHeight := int(math.Floor(inBroadcastWidth / screenCapRatio))
-
-		gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
 	}
 }
 
@@ -173,10 +178,10 @@ func (c *intercomClient) handleSendBroadcast() {
 	if c.wantToBroadcast {
 		c.sendVideoCapture()
 	} else {
-		if c.isSendingBroadcast {
-			c.isSendingBroadcast = false
-			c.ResetDisplayImg()
+		if c.hasWebcamOn {
 			c.webcam.Close()
+			c.hasWebcamOn = false
+			c.ResetDisplayImg()
 		}
 	}
 }
@@ -186,14 +191,14 @@ func (c *intercomClient) sendAudioSample() {
 }
 
 func (c *intercomClient) sendVideoCapture() {
-	if !c.isSendingBroadcast {
+	if !c.hasWebcamOn {
 		var err error
 		c.webcam, err = gocv.OpenVideoCapture(c.deviceID)
 		if err != nil {
 			fmt.Printf("Error opening video capture device: %v\n", c.deviceID)
 			return
 		}
-		c.isSendingBroadcast = true
+		c.hasWebcamOn = true
 		fmt.Println("outgoing broadcast starting")
 	}
 
@@ -205,25 +210,27 @@ func (c *intercomClient) sendVideoCapture() {
 	}
 
 	if videoCaptureImg.Empty() {
-		if c.isSendingBroadcast {
-			c.isSendingBroadcast = false
+		if c.hasWebcamOn {
+			c.webcam.Close()
+			c.hasWebcamOn = false
 			fmt.Println("outgoing broadcast ended")
 		}
 		return
 	}
 
 	req := proto.Broadcast{
-		Type
+		BroadcastType: &proto.Broadcast_Image{
+			Image: &proto.Image{
+				Height: int32(videoCaptureImg.Size()[0]),
+				Width:  int32(videoCaptureImg.Size()[1]),
+				Type:   int32(videoCaptureImg.Type()),
+				Bytes:  videoCaptureImg.ToBytes(),
+			},
+		},
 	}
-	// req := proto.Broadcast{
-	// 	Height: int32(videoCaptureImg.Size()[0]),
-	// 	Width:  int32(videoCaptureImg.Size()[1]),
-	// 	Type:   int32(videoCaptureImg.Type()),
-	// 	Bytes:  videoCaptureImg.ToBytes(),
-	// }
 
 	if err := c.streamClient.Send(&req); err != nil {
-		panic(err)
+		fmt.Printf("Send error: %v", err)
 		return
 	}
 
@@ -242,7 +249,7 @@ func (c *intercomClient) draw() {
 		}
 	}
 
-	if c.isSendingBroadcast {
+	if c.hasWebcamOn {
 		for x := 0; x < c.videoPreviewImg.Size()[0]; x++ {
 			for y := 0; y < outPreviewWidth; y++ {
 				c.displayImg.SetIntAt3(x+outPreviewX, y+outPreviewY, 0, c.videoPreviewImg.GetIntAt3(x, outPreviewWidth-y, 0))
@@ -270,14 +277,6 @@ func (c *intercomClient) Run() {
 
 	portaudio.Initialize()
 	defer portaudio.Terminate()
-
-	in := make([]int32, 64)
-	var err error
-	c.audioInputStream, err = portaudio.OpenDefaultStream(1, 0, audioSampleRate, len(in), in)
-	if err != nil {
-		panic(err)
-	}
-	defer c.audioInputStream.Close()
 
 	go c.handleReceiveBroadcast()
 
