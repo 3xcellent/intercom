@@ -53,7 +53,7 @@ type intercomClient struct {
 
 	isReceivingBroadcast bool
 	hasWebcamOn          bool
-	isSendingAudio       bool
+	hasMicOn             bool
 	isReceivingAudio     bool
 	wantToBroadcast      bool
 	wantToQuit           bool
@@ -160,16 +160,26 @@ func (c *intercomClient) handleReceiveBroadcast() {
 			scaledHeight := int(math.Floor(inBroadcastWidth / screenCapRatio))
 
 			gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
+			continue
+		}
+
+		respAudio := resp.GetAudio()
+		if respAudio != nil {
+			fmt.Print("*")
+			continue
 		}
 	}
 }
 
 func (c *intercomClient) handleSendAudio() {
 	if c.wantToBroadcast {
-		c.sendAudioSample()
+		if !c.hasMicOn {
+			fmt.Println("go c.startAudioBroadcast()...")
+			go c.startAudioBroadcast()
+		}
 	} else {
-		if c.isSendingAudio {
-			c.isSendingAudio = false
+		if c.hasMicOn {
+			c.hasMicOn = false
 		}
 	}
 }
@@ -186,8 +196,57 @@ func (c *intercomClient) handleSendBroadcast() {
 	}
 }
 
-func (c *intercomClient) sendAudioSample() {
+func (c *intercomClient) startAudioBroadcast() {
+	c.hasMicOn = true
+	in := make([]int32, 44100*.1)
+	fmt.Println("OpenDefaultStream...")
+	stream, err := portaudio.OpenDefaultStream(1, 0, 44100, len(in), in)
+	if err != nil {
+		panic(err)
+	}
+	err = stream.Start()
+	if err != nil {
+		panic(err)
+	}
+	for {
+		select {
+		case <-c.context.Done():
+			break
+		default:
+		}
 
+		if !c.wantToBroadcast {
+			break
+		}
+
+		fmt.Println("Reading...")
+		err = stream.Read()
+		if err != nil {
+			panic(err)
+		}
+
+		req := proto.Broadcast{
+			BroadcastType: &proto.Broadcast_Audio{
+				Audio: &proto.Audio{
+					Samples: in,
+				},
+			},
+		}
+
+		if err := c.streamClient.Send(&req); err != nil {
+			fmt.Printf("Send error: %v", err)
+			return
+		}
+		if err != nil {
+			panic(err)
+		}
+		fmt.Print("A")
+	}
+	err = stream.Stop()
+	if err != nil {
+		panic(err)
+	}
+	c.hasMicOn = false
 }
 
 func (c *intercomClient) sendVideoCapture() {
@@ -233,7 +292,7 @@ func (c *intercomClient) sendVideoCapture() {
 		fmt.Printf("Send error: %v", err)
 		return
 	}
-
+	fmt.Print("^")
 	screenCapRatio := float64(float64(videoCaptureImg.Size()[1]) / float64(videoCaptureImg.Size()[0]))
 	outPreviewScaledHeight := int(math.Floor(outPreviewWidth / screenCapRatio))
 
