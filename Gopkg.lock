@@ -16,6 +16,14 @@
   version = "v1.3.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:322ab352ba0fc7db4263e17c71624ba3b4d90365d2074afa57e5eb9214645174"
+  name = "github.com/gordonklaus/portaudio"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "00e7307ccd93051979a933c6fd5ead641eba5686"
+
+[[projects]]
   digest = "1:585a600255042d1bbf97a5bef9f7c23626d85a6b0d649df94cac4afb99e0bccc"
   name = "gocv.io/x/gocv"
   packages = ["."]
@@ -125,8 +133,11 @@
   analyzer-version = 1
   input-imports = [
     "github.com/golang/protobuf/proto",
+    "github.com/gordonklaus/portaudio",
     "gocv.io/x/gocv",
     "google.golang.org/grpc",
+    "google.golang.org/grpc/codes",
+    "google.golang.org/grpc/status",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

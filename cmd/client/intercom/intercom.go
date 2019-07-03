@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/3xcellent/intercom/proto"
+
+	"github.com/gordonklaus/portaudio"
 	"gocv.io/x/gocv"
 	"google.golang.org/grpc"
 )
@@ -27,13 +29,17 @@ const (
 	inBroadcastX      = screenHeight/2 - inBroadcastHeight/2 - inBroadcastHeight/4
 	inBroadcastY      = screenWidth/2 - inBroadcastWidth/2 - inBroadcastWidth/4
 
+	audioSampleRate = 44100
+
 	matType = gocv.MatTypeCV8UC3
 )
 
 type intercomClient struct {
-	window   *gocv.Window
-	webcam   *gocv.VideoCapture
-	deviceID string
+	window            *gocv.Window
+	webcam            *gocv.VideoCapture
+	audioInputStream  *portaudio.Stream
+	audioOutputStream *portaudio.Stream
+	deviceID          string
 
 	context context.Context
 
@@ -44,10 +50,14 @@ type intercomClient struct {
 	videoPreviewImg gocv.Mat
 	inBroadcastImg  gocv.Mat
 
+	audioOutputCache [][]int32
+
 	lastInBroadcastTime time.Time
 
 	isReceivingBroadcast bool
-	isSendingBroadcast   bool
+	hasWebcamOn          bool
+	hasMicOn             bool
+	isReceivingAudio     bool
 	wantToBroadcast      bool
 	wantToQuit           bool
 }
@@ -68,8 +78,8 @@ func (c *intercomClient) loadBackgroundImg(path string) {
 }
 
 func (c *intercomClient) shutdown() {
-	if c.isSendingBroadcast {
-		c.isSendingBroadcast = false
+	if c.hasWebcamOn {
+		c.hasWebcamOn = false
 		c.webcam.Close()
 	}
 
@@ -125,30 +135,83 @@ func (c *intercomClient) handleReceiveBroadcast() {
 
 		c.lastInBroadcastTime = time.Now()
 
-		serverImg, err := gocv.NewMatFromBytes(int(resp.Height), int(resp.Width), gocv.MatType(resp.Type), resp.Bytes)
+		respImage := resp.GetImage()
+		if respImage != nil {
+			serverImg, err := gocv.NewMatFromBytes(int(respImage.Height), int(respImage.Width), gocv.MatType(respImage.Type), respImage.Bytes)
+			if err != nil {
+				fmt.Printf("cannot create NewMatFromBytes %v\n", err)
+				c.ResetDisplayImg()
+				continue
+			}
+			defer serverImg.Close()
+
+			if serverImg.Empty() {
+				c.isReceivingBroadcast = false
+				c.ResetDisplayImg()
+				fmt.Println("incoming broadcast ended")
+				continue
+			}
+
+			if !c.isReceivingBroadcast {
+				c.isReceivingBroadcast = true
+				fmt.Println("receiving incoming broadcast")
+			}
+
+			screenCapRatio := float64(float64(serverImg.Size()[1]) / float64(serverImg.Size()[0]))
+			scaledHeight := int(math.Floor(inBroadcastWidth / screenCapRatio))
+
+			gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
+			continue
+		}
+
+		respAudio := resp.GetAudio()
+		if respAudio != nil {
+			c.audioOutputCache = append(c.audioOutputCache, respAudio.Samples)
+			if !c.isReceivingAudio {
+				c.isReceivingAudio = true
+				go c.handlePlayAudio()
+			}
+		}
+	}
+}
+
+func (c *intercomClient) handlePlayAudio() {
+	out := make([]int32, 44100*.1)
+	var err error
+
+	c.audioOutputStream, err = portaudio.OpenDefaultStream(0, 1, 44100, len(out), &out)
+	if err != nil {
+		panic("audio out err: " + err.Error())
+	}
+	defer c.audioOutputStream.Close()
+
+	c.audioOutputStream.Start()
+	defer c.audioOutputStream.Stop()
+
+	for {
+		if len(c.audioOutputCache) == 0 {
+			break
+		}
+
+		out = c.audioOutputCache[0]
+		c.audioOutputCache = c.audioOutputCache[1:]
+		err = c.audioOutputStream.Write()
 		if err != nil {
-			fmt.Printf("cannot create NewMatFromBytes %v\n", err)
-			c.ResetDisplayImg()
-			continue
+			panic("playback err: " + err.Error())
 		}
-		defer serverImg.Close()
+	}
+}
 
-		if serverImg.Empty() {
-			c.isReceivingBroadcast = false
-			c.ResetDisplayImg()
-			fmt.Println("incoming broadcast ended")
-			continue
+func (c *intercomClient) handleSendAudio() {
+	if c.wantToBroadcast {
+		if !c.hasMicOn {
+			fmt.Println("go c.startAudioBroadcast()...")
+			go c.startAudioBroadcast()
 		}
-
-		if !c.isReceivingBroadcast {
-			c.isReceivingBroadcast = true
-			fmt.Println("receiving incoming broadcast")
+	} else {
+		if c.hasMicOn {
+			c.hasMicOn = false
 		}
-
-		screenCapRatio := float64(float64(serverImg.Size()[1]) / float64(serverImg.Size()[0]))
-		scaledHeight := int(math.Floor(inBroadcastWidth / screenCapRatio))
-
-		gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
 	}
 }
 
@@ -156,23 +219,77 @@ func (c *intercomClient) handleSendBroadcast() {
 	if c.wantToBroadcast {
 		c.sendVideoCapture()
 	} else {
-		if c.isSendingBroadcast {
-			c.isSendingBroadcast = false
-			c.ResetDisplayImg()
+		if c.hasWebcamOn {
 			c.webcam.Close()
+			c.hasWebcamOn = false
+			c.ResetDisplayImg()
 		}
 	}
 }
 
+func (c *intercomClient) startAudioBroadcast() {
+	c.hasMicOn = true
+	in := make([]int32, 44100*.1)
+	fmt.Println("OpenDefaultStream...")
+	stream, err := portaudio.OpenDefaultStream(1, 0, 44100, len(in), &in)
+	if err != nil {
+		panic(err)
+	}
+	err = stream.Start()
+	if err != nil {
+		panic(err)
+	}
+	for {
+		select {
+		case <-c.context.Done():
+			break
+		default:
+		}
+
+		if !c.wantToBroadcast {
+			break
+		}
+
+		err = stream.Read()
+		if err != nil {
+			panic(err)
+		}
+
+		go func(sendSamples []int32) {
+			req := proto.Broadcast{
+				BroadcastType: &proto.Broadcast_Audio{
+					Audio: &proto.Audio{
+						Samples: sendSamples,
+					},
+				},
+			}
+
+			if err := c.streamClient.Send(&req); err != nil {
+				fmt.Printf("Send error: %v", err)
+				return
+			}
+			if err != nil {
+				panic(err)
+			}
+		}(in)
+
+	}
+	err = stream.Stop()
+	if err != nil {
+		panic(err)
+	}
+	c.hasMicOn = false
+}
+
 func (c *intercomClient) sendVideoCapture() {
-	if !c.isSendingBroadcast {
+	if !c.hasWebcamOn {
 		var err error
 		c.webcam, err = gocv.OpenVideoCapture(c.deviceID)
 		if err != nil {
 			fmt.Printf("Error opening video capture device: %v\n", c.deviceID)
 			return
 		}
-		c.isSendingBroadcast = true
+		c.hasWebcamOn = true
 		fmt.Println("outgoing broadcast starting")
 	}
 
@@ -184,22 +301,27 @@ func (c *intercomClient) sendVideoCapture() {
 	}
 
 	if videoCaptureImg.Empty() {
-		if c.isSendingBroadcast {
-			c.isSendingBroadcast = false
+		if c.hasWebcamOn {
+			c.webcam.Close()
+			c.hasWebcamOn = false
 			fmt.Println("outgoing broadcast ended")
 		}
 		return
 	}
 
 	req := proto.Broadcast{
-		Height: int32(videoCaptureImg.Size()[0]),
-		Width:  int32(videoCaptureImg.Size()[1]),
-		Type:   int32(videoCaptureImg.Type()),
-		Bytes:  videoCaptureImg.ToBytes(),
+		BroadcastType: &proto.Broadcast_Image{
+			Image: &proto.Image{
+				Height: int32(videoCaptureImg.Size()[0]),
+				Width:  int32(videoCaptureImg.Size()[1]),
+				Type:   int32(videoCaptureImg.Type()),
+				Bytes:  videoCaptureImg.ToBytes(),
+			},
+		},
 	}
 
 	if err := c.streamClient.Send(&req); err != nil {
-		panic(err)
+		fmt.Printf("Send error: %v", err)
 		return
 	}
 
@@ -218,7 +340,7 @@ func (c *intercomClient) draw() {
 		}
 	}
 
-	if c.isSendingBroadcast {
+	if c.hasWebcamOn {
 		for x := 0; x < c.videoPreviewImg.Size()[0]; x++ {
 			for y := 0; y < outPreviewWidth; y++ {
 				c.displayImg.SetIntAt3(x+outPreviewX, y+outPreviewY, 0, c.videoPreviewImg.GetIntAt3(x, outPreviewWidth-y, 0))
@@ -243,6 +365,10 @@ func (c *intercomClient) hasIncomingBroadcast() bool {
 
 func (c *intercomClient) Run() {
 	c.connectToServer()
+
+	portaudio.Initialize()
+	defer portaudio.Terminate()
+
 	go c.handleReceiveBroadcast()
 
 	// main program loop
@@ -262,6 +388,7 @@ func (c *intercomClient) Run() {
 		}
 
 		c.handleSendBroadcast()
+		c.handleSendAudio()
 		c.draw()
 	}
 }
@@ -272,7 +399,7 @@ func CreateIntercomClient(ctx context.Context, vidoeCaptureDeviceId, filename st
 		deviceID:        vidoeCaptureDeviceId,
 		videoPreviewImg: gocv.NewMatWithSize(outPreviewHeight, outPreviewWidth, gocv.MatTypeCV8UC3),
 		inBroadcastImg:  gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3),
-		context: ctx,
+		context:         ctx,
 	}
 
 	client.loadBackgroundImg(filename)

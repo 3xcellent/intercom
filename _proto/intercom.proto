@@ -9,8 +9,22 @@ service Intercom {
 }
 
 message Broadcast {
+    string name = 1;
+    oneof broadcast_type {
+        Image image = 2;
+        Audio audio = 3;
+    }
+}
+
+message Image {
     int32 height = 1;
     int32 width = 2;
     int32 type = 3;
     bytes bytes = 4;
+}
+
+message Audio {
+    int32 sampleRate = 1;
+    int32 length = 2;
+    repeated int32 samples = 3;
 }

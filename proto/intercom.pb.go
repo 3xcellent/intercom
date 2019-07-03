@@ -8,6 +8,8 @@ import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -23,13 +25,14 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type Broadcast struct {
-	Height               int32    `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
-	Width                int32    `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
-	Type                 int32    `protobuf:"varint,3,opt,name=type,proto3" json:"type,omitempty"`
-	Bytes                []byte   `protobuf:"bytes,4,opt,name=bytes,proto3" json:"bytes,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Types that are valid to be assigned to BroadcastType:
+	//	*Broadcast_Image
+	//	*Broadcast_Audio
+	BroadcastType        isBroadcast_BroadcastType `protobuf_oneof:"broadcast_type"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
 }
 
 func (m *Broadcast) Reset()         { *m = Broadcast{} }
@@ -57,52 +60,203 @@ func (m *Broadcast) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Broadcast proto.InternalMessageInfo
 
-func (m *Broadcast) GetHeight() int32 {
+func (m *Broadcast) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type isBroadcast_BroadcastType interface {
+	isBroadcast_BroadcastType()
+}
+
+type Broadcast_Image struct {
+	Image *Image `protobuf:"bytes,2,opt,name=image,proto3,oneof"`
+}
+
+type Broadcast_Audio struct {
+	Audio *Audio `protobuf:"bytes,3,opt,name=audio,proto3,oneof"`
+}
+
+func (*Broadcast_Image) isBroadcast_BroadcastType() {}
+
+func (*Broadcast_Audio) isBroadcast_BroadcastType() {}
+
+func (m *Broadcast) GetBroadcastType() isBroadcast_BroadcastType {
+	if m != nil {
+		return m.BroadcastType
+	}
+	return nil
+}
+
+func (m *Broadcast) GetImage() *Image {
+	if x, ok := m.GetBroadcastType().(*Broadcast_Image); ok {
+		return x.Image
+	}
+	return nil
+}
+
+func (m *Broadcast) GetAudio() *Audio {
+	if x, ok := m.GetBroadcastType().(*Broadcast_Audio); ok {
+		return x.Audio
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Broadcast) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*Broadcast_Image)(nil),
+		(*Broadcast_Audio)(nil),
+	}
+}
+
+type Image struct {
+	Height               int32    `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
+	Width                int32    `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Type                 int32    `protobuf:"varint,3,opt,name=type,proto3" json:"type,omitempty"`
+	Bytes                []byte   `protobuf:"bytes,4,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Image) Reset()         { *m = Image{} }
+func (m *Image) String() string { return proto.CompactTextString(m) }
+func (*Image) ProtoMessage()    {}
+func (*Image) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b7dc4dbe05ff714, []int{1}
+}
+
+func (m *Image) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Image.Unmarshal(m, b)
+}
+func (m *Image) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Image.Marshal(b, m, deterministic)
+}
+func (m *Image) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Image.Merge(m, src)
+}
+func (m *Image) XXX_Size() int {
+	return xxx_messageInfo_Image.Size(m)
+}
+func (m *Image) XXX_DiscardUnknown() {
+	xxx_messageInfo_Image.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Image proto.InternalMessageInfo
+
+func (m *Image) GetHeight() int32 {
 	if m != nil {
 		return m.Height
 	}
 	return 0
 }
 
-func (m *Broadcast) GetWidth() int32 {
+func (m *Image) GetWidth() int32 {
 	if m != nil {
 		return m.Width
 	}
 	return 0
 }
 
-func (m *Broadcast) GetType() int32 {
+func (m *Image) GetType() int32 {
 	if m != nil {
 		return m.Type
 	}
 	return 0
 }
 
-func (m *Broadcast) GetBytes() []byte {
+func (m *Image) GetBytes() []byte {
 	if m != nil {
 		return m.Bytes
 	}
 	return nil
 }
 
+type Audio struct {
+	SampleRate           int32    `protobuf:"varint,1,opt,name=sampleRate,proto3" json:"sampleRate,omitempty"`
+	Length               int32    `protobuf:"varint,2,opt,name=length,proto3" json:"length,omitempty"`
+	Samples              []int32  `protobuf:"varint,3,rep,packed,name=samples,proto3" json:"samples,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Audio) Reset()         { *m = Audio{} }
+func (m *Audio) String() string { return proto.CompactTextString(m) }
+func (*Audio) ProtoMessage()    {}
+func (*Audio) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b7dc4dbe05ff714, []int{2}
+}
+
+func (m *Audio) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Audio.Unmarshal(m, b)
+}
+func (m *Audio) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Audio.Marshal(b, m, deterministic)
+}
+func (m *Audio) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Audio.Merge(m, src)
+}
+func (m *Audio) XXX_Size() int {
+	return xxx_messageInfo_Audio.Size(m)
+}
+func (m *Audio) XXX_DiscardUnknown() {
+	xxx_messageInfo_Audio.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Audio proto.InternalMessageInfo
+
+func (m *Audio) GetSampleRate() int32 {
+	if m != nil {
+		return m.SampleRate
+	}
+	return 0
+}
+
+func (m *Audio) GetLength() int32 {
+	if m != nil {
+		return m.Length
+	}
+	return 0
+}
+
+func (m *Audio) GetSamples() []int32 {
+	if m != nil {
+		return m.Samples
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*Broadcast)(nil), "Broadcast")
+	proto.RegisterType((*Image)(nil), "Image")
+	proto.RegisterType((*Audio)(nil), "Audio")
 }
 
 func init() { proto.RegisterFile("intercom.proto", fileDescriptor_4b7dc4dbe05ff714) }
 
 var fileDescriptor_4b7dc4dbe05ff714 = []byte{
-	// 159 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcb, 0xcc, 0x2b, 0x49,
-	0x2d, 0x4a, 0xce, 0xcf, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x57, 0x4a, 0xe6, 0xe2, 0x74, 0x2a,
-	0xca, 0x4f, 0x4c, 0x49, 0x4e, 0x2c, 0x2e, 0x11, 0x12, 0xe3, 0x62, 0xcb, 0x48, 0xcd, 0x4c, 0xcf,
-	0x28, 0x91, 0x60, 0x54, 0x60, 0xd4, 0x60, 0x0d, 0x82, 0xf2, 0x84, 0x44, 0xb8, 0x58, 0xcb, 0x33,
-	0x53, 0x4a, 0x32, 0x24, 0x98, 0xc0, 0xc2, 0x10, 0x8e, 0x90, 0x10, 0x17, 0x4b, 0x49, 0x65, 0x41,
-	0xaa, 0x04, 0x33, 0x58, 0x10, 0xcc, 0x06, 0xa9, 0x4c, 0xaa, 0x2c, 0x49, 0x2d, 0x96, 0x60, 0x51,
-	0x60, 0xd4, 0xe0, 0x09, 0x82, 0x70, 0x8c, 0x8c, 0xb9, 0x38, 0x3c, 0xa1, 0xd6, 0x0a, 0xa9, 0x73,
-	0xb1, 0x3b, 0xe7, 0xe7, 0xe5, 0xa5, 0x26, 0x97, 0x08, 0x71, 0xe9, 0xc1, 0xad, 0x96, 0x42, 0x62,
-	0x2b, 0x31, 0x68, 0x30, 0x1a, 0x30, 0x3a, 0xb1, 0x47, 0xb1, 0x82, 0x9d, 0x98, 0xc4, 0x06, 0xa6,
-	0x8c, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x9b, 0xa5, 0xff, 0x82, 0xbb, 0x00, 0x00, 0x00,
+	// 265 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4c, 0x90, 0xc1, 0x6a, 0x83, 0x40,
+	0x10, 0x86, 0xb3, 0x35, 0xab, 0xcd, 0xb4, 0x84, 0xb2, 0x94, 0xb2, 0xf4, 0x10, 0xc4, 0x4b, 0x3d,
+	0x49, 0x49, 0x9e, 0xa0, 0xf6, 0xd2, 0x5c, 0xf7, 0xd6, 0x5e, 0xc2, 0xaa, 0x83, 0x0a, 0xd1, 0xb5,
+	0xba, 0xa5, 0xe4, 0xed, 0xc3, 0x8e, 0x9b, 0x90, 0x93, 0xf3, 0xcd, 0x8c, 0xfb, 0x0d, 0x3f, 0xac,
+	0xdb, 0xde, 0xe2, 0x58, 0x9a, 0x2e, 0x1b, 0x46, 0x63, 0x4d, 0xf2, 0x0b, 0xab, 0x7c, 0x34, 0xba,
+	0x2a, 0xf5, 0x64, 0x85, 0x80, 0x65, 0xaf, 0x3b, 0x94, 0x2c, 0x66, 0xe9, 0x4a, 0x51, 0x2d, 0x36,
+	0xc0, 0xdb, 0x4e, 0xd7, 0x28, 0xef, 0x62, 0x96, 0x3e, 0x6c, 0xc3, 0x6c, 0xef, 0xe8, 0x6b, 0xa1,
+	0xe6, 0xb6, 0x9b, 0xeb, 0xbf, 0xaa, 0x35, 0x32, 0xf0, 0xf3, 0x0f, 0x47, 0x6e, 0x4e, 0xed, 0xfc,
+	0x09, 0xd6, 0xc5, 0x45, 0x70, 0xb0, 0xa7, 0x01, 0x93, 0x03, 0x70, 0x7a, 0x43, 0xbc, 0x40, 0xd8,
+	0x60, 0x5b, 0x37, 0x96, 0x84, 0x5c, 0x79, 0x12, 0xcf, 0xc0, 0xff, 0xdb, 0xca, 0x36, 0xa4, 0xe4,
+	0x6a, 0x06, 0x77, 0x9c, 0xfb, 0x9d, 0x3c, 0x5c, 0x51, 0xed, 0x36, 0x8b, 0x93, 0xc5, 0x49, 0x2e,
+	0x63, 0x96, 0x3e, 0xaa, 0x19, 0x92, 0x6f, 0xe0, 0x74, 0x84, 0xd8, 0x00, 0x4c, 0xba, 0x1b, 0x8e,
+	0xa8, 0xb4, 0x45, 0x2f, 0xb9, 0xe9, 0xb8, 0x03, 0x8e, 0xd8, 0xd7, 0x57, 0x93, 0x27, 0x21, 0x21,
+	0x9a, 0xb7, 0x26, 0x19, 0xc4, 0x41, 0xca, 0xd5, 0x05, 0xb7, 0x3b, 0xb8, 0xdf, 0xfb, 0x00, 0xc5,
+	0x1b, 0x44, 0x9f, 0xa6, 0xef, 0xb1, 0xb4, 0x02, 0xb2, 0x6b, 0x88, 0xaf, 0x37, 0x75, 0xb2, 0x48,
+	0xd9, 0x3b, 0xcb, 0xa3, 0x1f, 0x4e, 0x61, 0x17, 0x21, 0x7d, 0x76, 0xe7, 0x00, 0x00, 0x00, 0xff,
+	0xff, 0x2e, 0xd7, 0xc7, 0xdb, 0x85, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -164,6 +318,14 @@ func (x *intercomConnectClient) Recv() (*Broadcast, error) {
 type IntercomServer interface {
 	// Connect will hold the connection to the server
 	Connect(Intercom_ConnectServer) error
+}
+
+// UnimplementedIntercomServer can be embedded to have forward compatible implementations.
+type UnimplementedIntercomServer struct {
+}
+
+func (*UnimplementedIntercomServer) Connect(srv Intercom_ConnectServer) error {
+	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
 }
 
 func RegisterIntercomServer(s *grpc.Server, srv IntercomServer) {
