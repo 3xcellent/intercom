@@ -219,28 +219,31 @@ func (c *intercomClient) startAudioBroadcast() {
 			break
 		}
 
-		fmt.Println("Reading...")
+		fmt.Println("*")
 		err = stream.Read()
 		if err != nil {
 			panic(err)
 		}
 
-		req := proto.Broadcast{
-			BroadcastType: &proto.Broadcast_Audio{
-				Audio: &proto.Audio{
-					Samples: in,
+		go func(sendSamples []int32) {
+			req := proto.Broadcast{
+				BroadcastType: &proto.Broadcast_Audio{
+					Audio: &proto.Audio{
+						Samples: sendSamples,
+					},
 				},
-			},
-		}
+			}
 
-		if err := c.streamClient.Send(&req); err != nil {
-			fmt.Printf("Send error: %v", err)
-			return
-		}
-		if err != nil {
-			panic(err)
-		}
-		fmt.Print("A")
+			if err := c.streamClient.Send(&req); err != nil {
+				fmt.Printf("Send error: %v", err)
+				return
+			}
+			if err != nil {
+				panic(err)
+			}
+			fmt.Print("A")
+		}(in)
+
 	}
 	err = stream.Stop()
 	if err != nil {
