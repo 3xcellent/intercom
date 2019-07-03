@@ -18,20 +18,24 @@ type intercomServer struct {
 	lastBroadcastImageReceived time.Time
 	lastBroadcastAudioReceived time.Time
 	hasIncomingBroadcastImage  bool
-	hasIncomingBroadcastAudio  bool
 	currentBroadcastImage      proto.Image
-	currentBroadcastAudio      proto.Audio
+	currentBroadcastAudioCache []proto.Audio
 }
 
 func (s *intercomServer) isCurrentlyBroadcasting() bool {
-	if !s.hasIncomingBroadcastImage && !s.hasIncomingBroadcastAudio {
+	if !s.hasIncomingBroadcastImage {
 		return false
 	}
-	if time.Now().After(s.lastBroadcastImageReceived.Add(300*time.Millisecond)) && time.Now().After(s.lastBroadcastAudioReceived.Add(300*time.Millisecond)) {
+
+	if len(s.currentBroadcastAudioCache) == 0 {
+		return false
+	}
+
+	if time.Now().After(s.lastBroadcastImageReceived.Add(200*time.Millisecond)) {
 		s.hasIncomingBroadcastImage = false
-		s.hasIncomingBroadcastAudio = false
 		return false
 	}
+
 	return true
 }
 
@@ -40,7 +44,6 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 	ctx := stream.Context()
 
 	var streamLastImageSent time.Time
-	var streamLastAudioSent time.Time
 
 	go func() {
 		// SEND LOOP
@@ -69,21 +72,22 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 				if err := stream.Send(&broadcast); err != nil {
 					fmt.Printf("send error %v", err)
 				}
-				fmt.Print("A")
 				s.imgMutex.Unlock()
 			}
 
-			if streamLastAudioSent != s.lastBroadcastAudioReceived {
+			if len(s.currentBroadcastAudioCache) > 0 {
+				s.audioMutex.Lock()
+
+				sendAudio := s.currentBroadcastAudioCache[0]
+				s.currentBroadcastAudioCache = s.currentBroadcastAudioCache[1:]
+
 				broadcast.BroadcastType = &proto.Broadcast_Audio{
-					Audio: &s.currentBroadcastAudio,
+					Audio: &sendAudio,
 				}
 
-				s.audioMutex.Lock()
 				if err := stream.Send(&broadcast); err != nil {
 					fmt.Printf("send error %v", err)
 				}
-				streamLastAudioSent = s.lastBroadcastAudioReceived
-				fmt.Print("I")
 				s.audioMutex.Unlock()
 			}
 		}
@@ -114,7 +118,6 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 
 			image := broadcast.GetImage()
 			if image != nil {
-				fmt.Print("i")
 				s.imgMutex.Lock()
 				s.currentBroadcastImage = *image
 				s.imgMutex.Unlock()
@@ -126,13 +129,9 @@ func (s *intercomServer) Connect(stream proto.Intercom_ConnectServer) error {
 
 			audio := broadcast.GetAudio()
 			if audio != nil {
-				fmt.Print("a")
 				s.audioMutex.Lock()
-				s.currentBroadcastAudio = *audio
+				s.currentBroadcastAudioCache = append(s.currentBroadcastAudioCache, *audio)
 				s.audioMutex.Unlock()
-
-				s.hasIncomingBroadcastAudio = true
-				s.lastBroadcastAudioReceived = time.Now()
 				continue
 			}
 		}
