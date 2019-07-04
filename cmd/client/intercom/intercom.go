@@ -44,7 +44,7 @@ type intercomClient struct {
 
 	context context.Context
 
-	streamClient proto.Intercom_ConnectClient
+	intercomServer proto.Intercom_ConnectClient
 
 	bgImg           gocv.Mat
 	displayImg      gocv.Mat
@@ -58,7 +58,6 @@ type intercomClient struct {
 	isReceivingBroadcast bool
 	hasWebcamOn          bool
 	hasMicOn             bool
-	isReceivingAudio     bool
 	isPlayingAudio       bool
 	wantToBroadcast      bool
 	wantToQuit           bool
@@ -116,7 +115,7 @@ func (c *intercomClient) connectToServer() {
 
 	// create streams
 	client := proto.NewIntercomClient(conn)
-	c.streamClient, err = client.Connect(c.context)
+	c.intercomServer, err = client.Connect(c.context)
 	if err != nil {
 		panic(err)
 	}
@@ -126,9 +125,9 @@ func (c *intercomClient) ResetDisplayImg() {
 	c.displayImg = c.bgImg.Clone()
 }
 
-func (c *intercomClient) handleReceiveBroadcast() {
+func (c *intercomClient) handleGrpcStreamRec() {
 	for {
-		resp, err := c.streamClient.Recv()
+		resp, err := c.intercomServer.Recv()
 		if err == io.EOF {
 			c.ResetDisplayImg()
 			continue
@@ -141,22 +140,22 @@ func (c *intercomClient) handleReceiveBroadcast() {
 
 		respImage := resp.GetImage()
 		if respImage != nil {
-			c.handleBroadcastImage(*respImage)
+			c.processBroadcastImage(*respImage)
 			continue
 		}
 
 		respAudio := resp.GetAudio()
 		if respAudio != nil {
 			c.audioOutputCache = append(c.audioOutputCache, respAudio.Samples)
-			if !c.isReceivingAudio {
-				c.isReceivingAudio = true
-				go c.handlePlayAudio()
+			if !c.isPlayingAudio {
+				c.isPlayingAudio = true
+				go c.playAudio()
 			}
 		}
 	}
 }
 
-func (c *intercomClient) handleBroadcastImage(img proto.Image) {
+func (c *intercomClient) processBroadcastImage(img proto.Image) {
 	serverImg, err := gocv.NewMatFromBytes(int(img.Height),
 		int(img.Width),
 		gocv.MatType(img.Type),
@@ -186,7 +185,7 @@ func (c *intercomClient) handleBroadcastImage(img proto.Image) {
 	gocv.Resize(serverImg, &c.inBroadcastImg, image.Point{X: inBroadcastWidth, Y: scaledHeight}, 0, 0, gocv.InterpolationDefault)
 }
 
-func (c *intercomClient) handlePlayAudio() {
+func (c *intercomClient) playAudio() {
 	out := make([]int32, sampleRate*sampleSeconds)
 	var err error
 
@@ -199,10 +198,10 @@ func (c *intercomClient) handlePlayAudio() {
 	c.audioOutputStream.Start()
 	defer c.audioOutputStream.Stop()
 
+	// audio playback loop
 	for {
 		cacheLength := len(c.audioOutputCache)
 		if cacheLength == 0 {
-			c.isReceivingAudio = false
 			c.isPlayingAudio = false
 			break
 		}
@@ -215,7 +214,6 @@ func (c *intercomClient) handlePlayAudio() {
 		if err != nil {
 			panic("playback err: " + err.Error())
 		}
-
 	}
 }
 
@@ -223,14 +221,16 @@ func (c *intercomClient) startAudioBroadcast() {
 	c.hasMicOn = true
 	in := make([]int32, 44100*.1)
 	fmt.Println("OpenDefaultStream...")
-	stream, err := portaudio.OpenDefaultStream(1, 0, 44100, len(in), &in)
+	audioInStream, err := portaudio.OpenDefaultStream(1, 0, 44100, len(in), &in)
 	if err != nil {
 		panic(err)
 	}
-	err = stream.Start()
+	err = audioInStream.Start()
 	if err != nil {
 		panic(err)
 	}
+
+	// audio broadcast loop
 	for {
 		select {
 		case <-c.context.Done():
@@ -242,7 +242,7 @@ func (c *intercomClient) startAudioBroadcast() {
 			break
 		}
 
-		err = stream.Read()
+		err = audioInStream.Read()
 		if err != nil {
 			panic(err)
 		}
@@ -256,7 +256,7 @@ func (c *intercomClient) startAudioBroadcast() {
 				},
 			}
 
-			if err := c.streamClient.Send(&req); err != nil {
+			if err := c.intercomServer.Send(&req); err != nil {
 				fmt.Printf("Send error: %v", err)
 				return
 			}
@@ -264,9 +264,8 @@ func (c *intercomClient) startAudioBroadcast() {
 				panic(err)
 			}
 		}(in)
-
 	}
-	err = stream.Stop()
+	err = audioInStream.Stop()
 	if err != nil {
 		panic(err)
 	}
@@ -312,10 +311,11 @@ func (c *intercomClient) sendVideoCapture() {
 		},
 	}
 
-	if err := c.streamClient.Send(&req); err != nil {
+	if err := c.intercomServer.Send(&req); err != nil {
 		fmt.Printf("Send error: %v", err)
 		return
 	}
+
 
 	screenCapRatio := float64(float64(videoCaptureImg.Size()[1]) / float64(videoCaptureImg.Size()[0]))
 	outPreviewScaledHeight := int(math.Floor(outPreviewWidth / screenCapRatio))
@@ -361,7 +361,7 @@ func (c *intercomClient) Run() {
 	portaudio.Initialize()
 	defer portaudio.Terminate()
 
-	go c.handleReceiveBroadcast()
+	go c.handleGrpcStreamRec()
 
 	// main program loop
 	for {
