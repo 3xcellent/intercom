@@ -1,27 +1,14 @@
 # Intercom
-Golang GRPC stream server and client for sending video.
+Golang GRPC stream server and client for sending audio and video.
 
-This is a demonstration of a bi-directional GRPC stream, while also being somewhat interesting in that it is streaming images via a connected webcam.  I have so far only tested on a Macbook Pro.  While the following installation instructions are for OSX as well,  there is no reason this wouldn't work on other OS's with the proper OpenCV installation and gocv build.
+This is a demonstration of a bi-directional GRPC stream, while also being somewhat interesting in that it is streaming audio and images with the connected microphone and webcam.  I have so far only tested on a Macbook Pro.  While the following installation instructions are for OSX as well,  there is no reason this wouldn't work on other OS's with the proper gocv and portaudio installations.
 
-I hope this eventually becomes useful.  It would be great to get this running on a Raspberry Pi with a display, webcam, and microphone attached, but for now, I just want to play with:
-* GRPC Streaming
-* Threading
+I would eventually like to target running on a Raspberry Pi with an attached display, webcam, and microphone.  Otherwise, I hope to learn a bit about:
+* GRPC Streams
+* Golang Threading
 * Audio/Video
-	
-## GRPC
-Using protobuf and protoc for code-generation of go files (i.e. `intercom.pb.go`)
 
-To generate updated proto files, run:
-
-```
-cd _proto
-protoc \
-  -I ./ \
-  --go_out=plugins=grpc:../proto \
-  intercom.proto
-```
-
-## Dev Setup
+## Dev Workstation Setup
 1. Install Opencv
     	
     ```
@@ -53,9 +40,21 @@ protoc \
     ```
     brew install portaudio
     ```
+	
+## GRPC
+Using protobuf and protoc for code-generation of go files (i.e. `intercom.pb.go`)
 
+To generate updated proto files, run:
 
-## Running
+```
+cd _proto
+protoc \
+  -I ./ \
+  --go_out=plugins=grpc:../proto \
+  intercom.proto
+```
+
+## Running 
 1. Start Server
     ```
     cd cmd/server
@@ -72,18 +71,4 @@ protoc \
     
     Press [Esc] to exit
     
-___
-### Issues
-Currently cannot include the portaudio and gocv libraries at the same time.  
-	* have an issue on the portaudio github page https://github.com/gordonklaus/portaudio/issues/30
-	
-### Threads
-I would like to have separate threads for more of the separate operations. GoCV 
-(or maybe more of an OpenCV issue?) seems to only be able to access the window 
-and VideoDevice (amongst other things) on the main thread on OSX.  This makes 
-threading very difficult.  GRPC connections are fine as long as they stay on the 
-same thread they were created on.
-
-One possible solution: https://github.com/golang/go/wiki/LockOSThread
-
-
+    Note that feedback can occur.  Once multiple clients are supported this can be addressed. 
