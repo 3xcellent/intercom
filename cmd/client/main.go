@@ -14,9 +14,10 @@ func main() {
 		return
 	}
 	deviceID := os.Args[1]
-	filename := os.Args[2]
+	serverIP := os.Args[2]
+	filename := os.Args[3]
 
 	//TODO: handle os shutdown/break in context
-	client := intercom.CreateIntercomClient(context.Background(), deviceID, filename)
+	client := intercom.CreateIntercomClient(context.Background(), deviceID, serverIP, filename)
 	client.Run()
 }

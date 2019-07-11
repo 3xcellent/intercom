@@ -41,6 +41,7 @@ type intercomClient struct {
 	audioInputStream  *portaudio.Stream
 	audioOutputStream *portaudio.Stream
 	deviceID          string
+	serverIP          string
 
 	context context.Context
 
@@ -63,10 +64,11 @@ type intercomClient struct {
 	wantToQuit           bool
 }
 
-func CreateIntercomClient(ctx context.Context, vidoeCaptureDeviceId, filename string) intercomClient {
+func CreateIntercomClient(ctx context.Context, vidoeCaptureDeviceId, serverIP, filename string) intercomClient {
 	client := intercomClient{
 		window:          gocv.NewWindow("Capture Window"),
 		deviceID:        vidoeCaptureDeviceId,
+		serverIP:        serverIP,
 		videoPreviewImg: gocv.NewMatWithSize(outPreviewHeight, outPreviewWidth, gocv.MatTypeCV8UC3),
 		inBroadcastImg:  gocv.NewMatWithSize(inBroadcastHeight, inBroadcastWidth, gocv.MatTypeCV8UC3),
 		context:         ctx,
@@ -108,7 +110,7 @@ func (c *intercomClient) shutdown() {
 
 func (c *intercomClient) connectToServer() {
 	// dail server
-	conn, err := grpc.Dial(":6000", grpc.WithInsecure())
+	conn, err := grpc.Dial(c.serverIP+":6000", grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
@@ -315,7 +317,6 @@ func (c *intercomClient) sendVideoCapture() {
 		fmt.Printf("Send error: %v", err)
 		return
 	}
-
 
 	screenCapRatio := float64(float64(videoCaptureImg.Size()[1]) / float64(videoCaptureImg.Size()[0]))
 	outPreviewScaledHeight := int(math.Floor(outPreviewWidth / screenCapRatio))
